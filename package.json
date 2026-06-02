@@ -1,0 +1,12 @@
+{
+  "name": "hunger-index",
+  "version": "1.0.0",
+  "description": "Global Food Insecurity Dashboard",
+  "scripts": {
+    "test": "node tests/test-suite.js",
+    "start": "node server.js"
+  },
+  "keywords": ["hunger", "food-insecurity", "humanitarian"],
+  "author": "Mikah",
+  "license": "MIT"
+}

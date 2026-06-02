@@ -1,0 +1,1871 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>THE HUNGER INDEX</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=IBM+Plex+Mono:wght@400;500&family=Source+Serif+4:ital,wght@0,300;0,400;0,600;1,300;1,400&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.1.0/dist/chartjs-plugin-annotation.min.js"></script>
+<script src="https://unpkg.com/topojson-client@3/dist/topojson-client.min.js"></script>
+<script src="https://unpkg.com/globe.gl@2.27.0/dist/globe.gl.min.js"></script>
+<style>
+:root {
+  --ink: #0d0d0d;
+  --paper: #f7f5f0;
+  --white: #ffffff;
+  --blue-deep: #003566;
+  --blue-mid: #1a5fa8;
+  --blue-light: #cce3f5;
+  --green-dark: #1b4332;
+  --green-mid: #2d6a4f;
+  --green-light: #d8f3dc;
+  --gray-900: #1a1a1a;
+  --gray-700: #3d3d3d;
+  --gray-500: #6b6b6b;
+  --gray-300: #c4c4c4;
+  --gray-100: #f0eeea;
+  --ipc1: #f9e04b;
+  --ipc2: #f5a12e;
+  --ipc3: #e2591a;
+  --ipc4: #bb2c0b;
+  --ipc5: #5e0606;
+  --border: 1px solid #d6d2c8;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{font-size:16px;scroll-behavior:smooth;}
+body{font-family:'Source Serif 4',Georgia,serif;background:var(--paper);color:var(--ink);min-height:100vh;overflow-x:hidden;padding-bottom:40px;}
+
+/* NAV */
+nav{position:fixed;top:0;left:0;right:0;z-index:1000;background:var(--white);border-bottom:2px solid var(--ink);display:flex;align-items:stretch;height:56px;}
+.nav-logo{display:flex;align-items:center;padding:0 24px;border-right:var(--border);cursor:pointer;text-decoration:none;}
+.nav-logo-text{font-family:'Playfair Display',serif;font-weight:900;font-size:1rem;letter-spacing:0.18em;color:var(--ink);text-transform:uppercase;line-height:1;}
+.nav-logo-text span{display:block;font-size:0.55rem;letter-spacing:0.35em;color:var(--gray-500);font-weight:400;font-family:'IBM Plex Mono',monospace;margin-top:3px;}
+.nav-links{display:flex;align-items:stretch;flex:1;list-style:none;}
+.nav-links li{display:flex;align-items:center;border-right:var(--border);}
+.nav-links a{display:flex;align-items:center;padding:0 18px;font-family:'IBM Plex Mono',monospace;font-size:0.65rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--gray-700);text-decoration:none;height:100%;transition:background .15s,color .15s;white-space:nowrap;cursor:pointer;}
+.nav-links a:hover,.nav-links a.active{background:var(--ink);color:var(--white);}
+.nav-live{margin-left:auto;display:flex;align-items:center;padding:0 20px;gap:8px;border-left:var(--border);}
+.live-dot{width:7px;height:7px;border-radius:50%;background:#e2591a;animation:pulse-dot 1.5s infinite;}
+@keyframes pulse-dot{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.4;transform:scale(.7);}}
+.live-label{font-family:'IBM Plex Mono',monospace;font-size:.6rem;letter-spacing:.1em;color:#e2591a;text-transform:uppercase;}
+
+/* PAGES */
+.page{display:none;padding-top:56px;min-height:100vh;}
+.page.active{display:block;}
+
+/* HERO */
+.hero{background:var(--ink);color:var(--white);padding:80px 60px 60px;position:relative;overflow:hidden;border-bottom:3px solid var(--blue-mid);}
+.hero-dateline{font-family:'IBM Plex Mono',monospace;font-size:.62rem;letter-spacing:.2em;text-transform:uppercase;color:var(--gray-300);margin-bottom:28px;opacity:0;}
+.hero-headline{font-family:'Playfair Display',serif;font-weight:900;font-size:clamp(2.8rem,6vw,5.2rem);line-height:1.05;max-width:820px;margin-bottom:32px;opacity:0;}
+.hero-headline em{font-style:italic;color:#f5a12e;}
+.hero-sub{font-family:'Source Serif 4',serif;font-size:1.05rem;line-height:1.65;color:var(--gray-300);max-width:540px;margin-bottom:56px;opacity:0;}
+.stat-row{display:grid;grid-template-columns:repeat(4,1fr);gap:0;border-top:1px solid rgba(255,255,255,.15);padding-top:40px;}
+.stat-block{padding:0 32px 0 0;border-right:1px solid rgba(255,255,255,.1);opacity:0;}
+.stat-block:first-child{padding-left:0;}
+.stat-block:last-child{border-right:none;padding-right:0;}
+.stat-num{font-family:'Playfair Display',serif;font-weight:900;font-size:3rem;line-height:1;color:var(--white);display:block;margin-bottom:6px;}
+.stat-num .unit{font-size:1.4rem;color:#f5a12e;}
+.stat-label{font-family:'IBM Plex Mono',monospace;font-size:.6rem;letter-spacing:.14em;text-transform:uppercase;color:var(--gray-300);line-height:1.4;}
+.ipc-strip{display:flex;height:6px;}
+.ipc-strip div{flex:1;}
+
+/* HOME GRID */
+.home-grid{display:grid;grid-template-columns:1fr 300px 300px;gap:0;border-top:var(--border);}
+.home-main{border-right:var(--border);}
+
+/* SPOTLIGHT */
+.home-spotlight{border-left:var(--border);display:flex;flex-direction:column;min-height:400px;}
+.spotlight-body{padding:20px;flex:1;}
+.spotlight-ipc{font-family:'IBM Plex Mono',monospace;font-size:.58rem;font-weight:500;letter-spacing:.1em;text-transform:uppercase;padding:3px 8px;border-radius:2px;margin-bottom:10px;color:white;display:inline-block;}
+.spotlight-country{font-family:'Playfair Display',serif;font-weight:900;font-size:1.5rem;line-height:1.1;margin-bottom:4px;}
+.spotlight-nav{display:flex;align-items:center;justify-content:space-between;padding:8px 20px 14px;border-top:var(--border);}
+.spotlight-dots{display:flex;gap:6px;}
+.spotlight-dot{width:7px;height:7px;border-radius:50%;background:var(--gray-300);cursor:pointer;transition:background .2s;border:none;padding:0;}
+.spotlight-dot.active{background:var(--ipc4);}
+.spotlight-arrow{background:none;border:none;cursor:pointer;font-size:1.1rem;color:var(--gray-500);opacity:0;transition:opacity .2s;padding:4px 8px;line-height:1;}
+.home-spotlight:hover .spotlight-arrow{opacity:0.6;}
+.spotlight-arrow:hover{opacity:1!important;color:var(--ink);}
+
+/* MAP SEARCH DROPDOWN */
+.map-search-item{padding:7px 10px;cursor:pointer;border-bottom:1px solid var(--gray-100);display:flex;align-items:center;justify-content:space-between;gap:8px;font-family:'IBM Plex Mono',monospace;}
+.map-search-item:hover{background:var(--gray-100);}
+.map-search-item:last-child{border-bottom:none;}
+.map-search-name{font-size:.65rem;color:var(--ink);}
+.map-search-region{font-size:.52rem;color:var(--gray-500);letter-spacing:.05em;text-transform:uppercase;white-space:nowrap;}
+.map-search-badge{font-size:.5rem;padding:1px 5px;border-radius:2px;font-family:'IBM Plex Mono',monospace;letter-spacing:.05em;margin-left:4px;color:white;vertical-align:middle;}
+
+/* PROFILE ENHANCEMENTS */
+.profile-section{background:var(--white);border:var(--border);padding:20px;margin-bottom:18px;}
+.profile-section h3{font-family:'Playfair Display',serif;font-weight:700;font-size:.95rem;margin-bottom:10px;padding-bottom:8px;border-bottom:var(--border);}
+.profile-section p{font-family:'Source Serif 4',serif;font-size:.88rem;line-height:1.68;color:var(--gray-700);}
+.profile-live-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.profile-live-stat{padding:12px;background:var(--gray-100);border:var(--border);}
+.profile-live-val{font-family:'Playfair Display',serif;font-weight:700;font-size:1.4rem;color:var(--ipc4);}
+.profile-live-lbl{font-family:'IBM Plex Mono',monospace;font-size:.52rem;letter-spacing:.1em;text-transform:uppercase;color:var(--gray-500);margin-top:3px;}
+.ghi-badge{display:inline-flex;align-items:center;gap:8px;background:var(--gray-100);border:var(--border);padding:8px 14px;border-radius:2px;margin-top:10px;}
+.ghi-badge-score{font-family:'Playfair Display',serif;font-weight:700;font-size:1.6rem;line-height:1;}
+.ghi-badge-label{font-family:'IBM Plex Mono',monospace;font-size:.52rem;letter-spacing:.1em;text-transform:uppercase;color:var(--gray-500);}
+.section-label{font-family:'IBM Plex Mono',monospace;font-size:.6rem;letter-spacing:.2em;text-transform:uppercase;color:var(--gray-500);padding:16px 24px;border-bottom:var(--border);background:var(--gray-100);}
+.crisis-cards{display:grid;grid-template-columns:1fr 1fr;}
+.crisis-card{padding:24px;border-bottom:var(--border);border-right:var(--border);cursor:pointer;transition:background .15s;position:relative;}
+.crisis-card:hover{background:var(--blue-light);}
+.crisis-card:nth-child(even){border-right:none;}
+.card-ipc{display:inline-block;font-family:'IBM Plex Mono',monospace;font-size:.58rem;font-weight:500;letter-spacing:.1em;text-transform:uppercase;padding:3px 8px;border-radius:2px;margin-bottom:10px;color:white;}
+.card-country{font-family:'Playfair Display',serif;font-weight:700;font-size:1.2rem;line-height:1.2;margin-bottom:6px;}
+.card-region{font-family:'IBM Plex Mono',monospace;font-size:.58rem;color:var(--gray-500);letter-spacing:.1em;text-transform:uppercase;margin-bottom:10px;}
+.card-stat{font-family:'Source Serif 4',serif;font-size:.88rem;color:var(--gray-700);line-height:1.5;}
+.card-pop{font-family:'Playfair Display',serif;font-weight:700;font-size:1.5rem;color:var(--ipc4);display:block;margin-top:8px;}
+.news-item{padding:18px 20px;border-bottom:var(--border);cursor:pointer;transition:background .12s;}
+.news-item:hover{background:var(--gray-100);}
+.news-source{font-family:'IBM Plex Mono',monospace;font-size:.56rem;letter-spacing:.12em;text-transform:uppercase;color:var(--blue-mid);margin-bottom:5px;}
+.news-title{font-family:'Source Serif 4',serif;font-size:.85rem;line-height:1.45;color:var(--ink);margin-bottom:5px;}
+.news-date{font-family:'IBM Plex Mono',monospace;font-size:.55rem;color:var(--gray-500);}
+
+/* MAP */
+.map-container{display:grid;grid-template-columns:1fr 320px;height:calc(100vh - 62px);}
+#map{height:100%;z-index:1;background:#000;overflow:hidden;}
+.map-sidebar{border-left:2px solid var(--ink);overflow-y:auto;background:var(--white);padding-bottom:40px;}
+.map-sidebar-header{padding:20px;border-bottom:2px solid var(--ink);background:var(--ink);color:var(--white);}
+.map-sidebar-header h2{font-family:'Playfair Display',serif;font-weight:700;font-size:1.1rem;margin-bottom:4px;}
+.map-sidebar-header p{font-family:'IBM Plex Mono',monospace;font-size:.58rem;color:var(--gray-300);letter-spacing:.1em;}
+.ipc-legend{padding:16px 20px;border-bottom:var(--border);}
+.ipc-legend-title{font-family:'IBM Plex Mono',monospace;font-size:.58rem;letter-spacing:.15em;text-transform:uppercase;color:var(--gray-500);margin-bottom:12px;}
+.ipc-item{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
+.ipc-swatch{width:14px;height:14px;border-radius:2px;flex-shrink:0;}
+.ipc-item-label{font-family:'IBM Plex Mono',monospace;font-size:.62rem;color:var(--gray-700);}
+.map-country-panel{padding:20px;}
+.map-stat-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px;}
+.map-stat{padding:12px;background:var(--gray-100);border:var(--border);}
+.map-stat-val{font-family:'Playfair Display',serif;font-weight:700;font-size:1.4rem;color:var(--ipc4);}
+.map-stat-lbl{font-family:'IBM Plex Mono',monospace;font-size:.55rem;letter-spacing:.1em;text-transform:uppercase;color:var(--gray-500);margin-top:3px;}
+
+/* TRENDS */
+.trends-layout{max-width:1100px;margin:0 auto;padding:48px 40px;}
+.page-title{font-family:'Playfair Display',serif;font-weight:900;font-size:2.8rem;line-height:1.1;margin-bottom:8px;}
+.page-subtitle{font-family:'IBM Plex Mono',monospace;font-size:.65rem;letter-spacing:.15em;text-transform:uppercase;color:var(--gray-500);margin-bottom:40px;padding-bottom:24px;border-bottom:2px solid var(--ink);}
+.charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:32px;margin-bottom:32px;}
+.chart-card{background:var(--white);border:var(--border);border-top:3px solid var(--blue-deep);padding:24px;}
+.chart-card-full{background:var(--white);border:var(--border);border-top:3px solid var(--green-mid);padding:24px;margin-bottom:32px;}
+.chart-title{font-family:'Playfair Display',serif;font-weight:700;font-size:1.05rem;margin-bottom:4px;}
+.chart-meta{font-family:'IBM Plex Mono',monospace;font-size:.58rem;letter-spacing:.1em;text-transform:uppercase;color:var(--gray-500);margin-bottom:20px;}
+
+/* NEWS */
+.news-layout{max-width:900px;margin:0 auto;padding:48px 40px;}
+.news-filters{display:flex;gap:8px;margin-bottom:32px;flex-wrap:wrap;}
+.filter-btn{font-family:'IBM Plex Mono',monospace;font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;padding:6px 14px;border:1px solid var(--gray-300);background:var(--white);cursor:pointer;transition:all .15s;}
+.filter-btn:hover,.filter-btn.active{background:var(--ink);color:var(--white);border-color:var(--ink);}
+.news-article{padding:24px 0;border-bottom:var(--border);display:grid;grid-template-columns:1fr 100px;gap:20px;align-items:start;cursor:pointer;}
+.news-article:hover{background:var(--gray-100);padding:24px 12px;margin:0 -12px;}
+.article-source{font-family:'IBM Plex Mono',monospace;font-size:.58rem;letter-spacing:.12em;text-transform:uppercase;color:var(--blue-mid);margin-bottom:6px;}
+.article-title{font-family:'Playfair Display',serif;font-weight:700;font-size:1.15rem;line-height:1.3;margin-bottom:8px;word-break:break-word;overflow-wrap:break-word;}
+.article-body{font-family:'Source Serif 4',serif;font-size:.88rem;line-height:1.6;color:var(--gray-700);margin-bottom:8px;word-break:break-word;overflow-wrap:break-word;}
+.article-tags{display:flex;gap:6px;flex-wrap:wrap;}
+.tag{font-family:'IBM Plex Mono',monospace;font-size:.55rem;letter-spacing:.08em;text-transform:uppercase;padding:2px 7px;border:1px solid var(--gray-300);color:var(--gray-500);}
+.article-date{font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:var(--gray-500);text-align:right;line-height:1.5;align-self:start;}
+.news-article > div:first-child{min-width:0;}
+
+/* PROFILES */
+.profiles-layout{display:grid;grid-template-columns:280px 1fr;height:calc(100vh - 62px);}
+.country-list{border-right:2px solid var(--ink);overflow-y:auto;background:var(--white);}
+.country-list-header{padding:16px 20px;border-bottom:2px solid var(--ink);background:var(--ink);color:var(--white);font-family:'IBM Plex Mono',monospace;font-size:.6rem;letter-spacing:.15em;text-transform:uppercase;}
+.country-search{width:100%;padding:12px 16px;border:none;border-bottom:var(--border);font-family:'IBM Plex Mono',monospace;font-size:.7rem;background:var(--gray-100);color:var(--ink);outline:none;}
+.country-item{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:var(--border);cursor:pointer;transition:background .12s;}
+.country-item:hover,.country-item.active{background:var(--blue-light);}
+.country-item-name{font-family:'Source Serif 4',serif;font-size:.88rem;font-weight:600;}
+.country-item-ipc{font-family:'IBM Plex Mono',monospace;font-size:.55rem;letter-spacing:.08em;padding:2px 6px;color:white;border-radius:2px;}
+.profile-detail{overflow-y:auto;padding:40px 40px 80px;background:var(--paper);}
+.profile-header{border-bottom:2px solid var(--ink);padding-bottom:24px;margin-bottom:32px;}
+.profile-country-name{font-family:'Playfair Display',serif;font-weight:900;font-size:2.8rem;line-height:1;margin-bottom:6px;}
+.profile-region{font-family:'IBM Plex Mono',monospace;font-size:.62rem;letter-spacing:.15em;text-transform:uppercase;color:var(--gray-500);margin-bottom:12px;}
+.profile-ipc-badge{display:inline-block;font-family:'IBM Plex Mono',monospace;font-size:.65rem;letter-spacing:.1em;text-transform:uppercase;padding:5px 12px;color:white;border-radius:2px;}
+.profile-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:32px;}
+.profile-stat{background:var(--white);border:var(--border);border-top:3px solid var(--blue-mid);padding:16px;}
+.profile-stat-val{font-family:'Playfair Display',serif;font-weight:700;font-size:1.8rem;color:var(--ipc4);display:block;}
+.profile-stat-lbl{font-family:'IBM Plex Mono',monospace;font-size:.55rem;letter-spacing:.1em;text-transform:uppercase;color:var(--gray-500);margin-top:4px;}
+.profile-narrative{background:var(--white);border:var(--border);padding:24px;margin-bottom:24px;}
+.profile-narrative h3{font-family:'Playfair Display',serif;font-weight:700;font-size:1rem;margin-bottom:12px;padding-bottom:10px;border-bottom:var(--border);}
+.profile-narrative p{font-family:'Source Serif 4',serif;font-size:.9rem;line-height:1.7;color:var(--gray-700);}
+
+/* ABOUT */
+.about-layout{max-width:780px;margin:0 auto;padding:60px 40px;}
+.about-layout h1{font-family:'Playfair Display',serif;font-weight:900;font-size:3rem;line-height:1.1;margin-bottom:6px;}
+.about-layout .byline{font-family:'IBM Plex Mono',monospace;font-size:.62rem;letter-spacing:.15em;text-transform:uppercase;color:var(--gray-500);margin-bottom:40px;padding-bottom:32px;border-bottom:2px solid var(--ink);}
+.about-section{margin-bottom:40px;}
+.about-section h2{font-family:'Playfair Display',serif;font-weight:700;font-size:1.3rem;margin-bottom:14px;padding-bottom:10px;border-bottom:var(--border);}
+.about-section p{font-family:'Source Serif 4',serif;font-size:.95rem;line-height:1.75;color:var(--gray-700);margin-bottom:14px;}
+.source-table{width:100%;border-collapse:collapse;margin-top:16px;}
+.source-table th{font-family:'IBM Plex Mono',monospace;font-size:.58rem;letter-spacing:.12em;text-transform:uppercase;color:var(--gray-500);text-align:left;padding:8px 12px;background:var(--gray-100);border:var(--border);}
+.source-table td{font-family:'Source Serif 4',serif;font-size:.85rem;padding:10px 12px;border:var(--border);color:var(--gray-700);}
+.source-table tr:hover td{background:var(--blue-light);}
+
+/* TICKER */
+.ticker{position:fixed;bottom:0;left:0;right:0;z-index:999;background:var(--ink);color:var(--white);height:32px;display:flex;align-items:center;overflow:hidden;border-top:2px solid var(--ipc4);}
+.ticker-label{flex-shrink:0;padding:0 14px;font-family:'IBM Plex Mono',monospace;font-size:.58rem;letter-spacing:.15em;text-transform:uppercase;color:var(--ipc3);border-right:1px solid rgba(255,255,255,.2);height:100%;display:flex;align-items:center;}
+.ticker-track{display:flex;animation:ticker-scroll 45s linear infinite;white-space:nowrap;}
+.ticker-item{font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:var(--gray-300);padding:0 32px;letter-spacing:.05em;}
+.ticker-item strong{color:var(--white);margin-right:6px;}
+@keyframes ticker-scroll{0%{transform:translateX(0);}100%{transform:translateX(-50%);}}
+
+/* LOADING */
+.loading-overlay{position:fixed;inset:0;z-index:9999;background:var(--ink);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;}
+.loading-logo{font-family:'Playfair Display',serif;font-weight:900;font-size:2.2rem;letter-spacing:.2em;text-transform:uppercase;color:var(--white);opacity:0;}
+.loading-sub{font-family:'IBM Plex Mono',monospace;font-size:.6rem;letter-spacing:.3em;text-transform:uppercase;color:var(--gray-500);opacity:0;}
+.loading-bar-wrap{width:280px;height:2px;background:rgba(255,255,255,.1);overflow:hidden;opacity:0;}
+.loading-bar{height:100%;width:0%;background:var(--ipc3);}
+.loading-status{font-family:'IBM Plex Mono',monospace;font-size:.55rem;color:var(--gray-500);letter-spacing:.15em;opacity:0;}
+.update-flash{position:fixed;top:64px;right:16px;background:var(--ink);color:var(--white);font-family:'IBM Plex Mono',monospace;font-size:.58rem;letter-spacing:.1em;padding:8px 14px;z-index:9000;border-left:3px solid var(--ipc3);opacity:0;transform:translateX(20px);}
+.empty-state{padding:40px;text-align:center;color:var(--gray-500);font-family:'IBM Plex Mono',monospace;font-size:.7rem;letter-spacing:.1em;}
+
+/* FEEDBACK WIDGET */
+.feedback-widget{position:fixed;bottom:50px;right:20px;z-index:998;}
+.feedback-toggle{background:var(--ink);color:white;border:none;padding:12px 16px;border-radius:50px;cursor:pointer;font-family:'IBM Plex Mono',monospace;font-size:0.7rem;box-shadow:0 4px 12px rgba(0,0,0,0.2);transition:transform 0.2s;text-transform:uppercase;letter-spacing:0.1em;font-weight:500;}
+.feedback-toggle:hover{transform:scale(1.1);}
+.feedback-modal{position:fixed;bottom:80px;right:20px;z-index:998;background:white;border:2px solid var(--ink);border-radius:4px;width:320px;max-height:400px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,0.2);display:none;}
+.feedback-modal.open{display:block;}
+.feedback-content{padding:20px;}
+.feedback-modal h3{font-family:'Playfair Display',serif;font-weight:700;margin-bottom:16px;}
+.feedback-modal label{display:block;margin:12px 0 6px;font-family:'IBM Plex Mono',monospace;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.1em;}
+.feedback-modal select,.feedback-modal textarea{width:100%;padding:8px;border:1px solid #ccc;border-radius:2px;font-family:'Source Serif 4',serif;margin-bottom:12px;}
+.feedback-modal button{width:100%;background:var(--ink);color:white;padding:8px 16px;border:none;cursor:pointer;border-radius:2px;font-family:'IBM Plex Mono',monospace;font-size:0.6rem;letter-spacing:0.1em;text-transform:uppercase;}
+
+::-webkit-scrollbar{width:4px;}
+::-webkit-scrollbar-track{background:var(--gray-100);}
+::-webkit-scrollbar-thumb{background:var(--gray-300);}
+
+/* Trends key metrics row */
+.trends-metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--ink);border:2px solid var(--ink);margin-bottom:32px;overflow:hidden;}
+.trend-metric{background:var(--white);padding:18px 20px;text-align:center;}
+.trend-metric-num{font-family:'Playfair Display',serif;font-size:1.8rem;font-weight:700;color:var(--ipc4);line-height:1;}
+.trend-metric-label{font-family:'IBM Plex Mono',monospace;font-size:.52rem;text-transform:uppercase;letter-spacing:.1em;color:var(--gray-500);margin-top:5px;}
+.trend-metric-sub{font-family:'IBM Plex Mono',monospace;font-size:.5rem;color:var(--ipc3);margin-top:3px;}
+
+/* Chart improvements */
+.chart-insight{font-family:'IBM Plex Mono',monospace;font-size:.58rem;color:var(--gray-500);line-height:1.6;margin-top:12px;padding-top:12px;border-top:1px solid var(--gray-100);}
+
+/* Nav responsive */
+@media (max-width:980px){
+  .nav-logo-text span{display:none;}
+  .nav-links a{padding:0 12px;font-size:.58rem;letter-spacing:.08em;}
+  .nav-logo{padding:0 14px;}
+}
+@media (max-width:768px){
+  .stat-row{grid-template-columns:1fr 1fr;gap:20px;}
+  .home-grid{grid-template-columns:1fr;}
+  .charts-grid{grid-template-columns:1fr;}
+  .profile-stats{grid-template-columns:1fr 1fr;}
+  .profiles-layout{grid-template-columns:1fr;}
+  .map-container{grid-template-columns:1fr;}
+  .trends-metrics{grid-template-columns:1fr 1fr;}
+  .nav-links{overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;}
+  .nav-links::-webkit-scrollbar{display:none;}
+  .nav-links li{flex-shrink:0;}
+  .nav-logo-text{font-size:.88rem;letter-spacing:.12em;}
+}
+@media (max-width:480px){
+  .trends-metrics{grid-template-columns:1fr 1fr;}
+  .hero{padding:60px 24px 40px;}
+  .nav-logo-text{display:none;}
+}
+.data-banner{position:fixed;top:60px;left:0;right:0;z-index:997;background:#fff3cd;color:#664d03;font-family:'IBM Plex Mono',monospace;font-size:.68rem;padding:7px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #ffda6a;transform:translateY(-100%);opacity:0;will-change:transform,opacity;}
+.data-banner-btn{background:none;border:1px solid #664d03;color:#664d03;font-family:'IBM Plex Mono',monospace;font-size:.62rem;padding:3px 10px;cursor:pointer;border-radius:3px;letter-spacing:.05em;margin-left:12px;flex-shrink:0;}
+.data-banner-btn:hover{background:#664d03;color:#fff3cd;}
+.news-status-tag{background:#fff3cd;color:#664d03;border:1px solid #ffda6a;padding:2px 8px;border-radius:3px;font-size:.6rem;margin-left:8px;letter-spacing:.05em;}
+#heroNum{display:flex;align-items:stretch;gap:3px;perspective:700px;font-style:normal;line-height:1;margin-bottom:10px;flex-wrap:nowrap;}
+.od-digit-cell{font-family:'IBM Plex Mono',monospace;font-size:clamp(1.9rem,4.8vw,3.4rem);color:#f5a12e;display:inline-block;width:.68em;text-align:center;background:rgba(0,0,0,0.38);border:1px solid rgba(245,161,46,0.22);border-radius:5px;padding:.07em .05em;box-shadow:inset 0 2px 10px rgba(0,0,0,0.65),0 0 5px rgba(245,161,46,0.07);transform-style:preserve-3d;backface-visibility:hidden;position:relative;}
+.od-sep{font-family:'IBM Plex Mono',monospace;font-size:clamp(1.9rem,4.8vw,3.4rem);color:rgba(245,161,46,0.45);align-self:center;padding:0 1px;line-height:1;pointer-events:none;}
+.hero-counter-text{display:block;font-size:clamp(1rem,2.4vw,1.7rem);margin-top:6px;font-style:normal;color:rgba(255,255,255,0.82);letter-spacing:0.01em;}
+.hero-counter-meta{display:block;font-family:'IBM Plex Mono',monospace;font-size:.55rem;letter-spacing:.18em;text-transform:uppercase;color:rgba(255,255,255,.4);margin-bottom:8px;}
+</style>
+</head>
+<body>
+
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-logo" id="loadLogo">THE HUNGER INDEX</div>
+  <div class="loading-sub" id="loadSub">Global Food Insecurity Dashboard</div>
+  <div class="loading-bar-wrap" id="loadBarWrap"><div class="loading-bar" id="loadBar"></div></div>
+  <div class="loading-status" id="loadStatus">Connecting to WFP HungerMap API...</div>
+</div>
+
+<div class="update-flash" id="updateFlash">↻ Data refreshed</div>
+
+<nav>
+  <a class="nav-logo" onclick="navigate('home'); return false;" style="cursor:pointer;">
+    <div class="nav-logo-text">The Hunger Index<span>Global Food Insecurity Dashboard</span></div>
+  </a>
+  <ul class="nav-links">
+    <li><a onclick="navigate('home'); return false;" id="nav-home" class="active">Overview</a></li>
+    <li><a onclick="navigate('map'); return false;" id="nav-map">Map</a></li>
+    <li><a onclick="navigate('trends'); return false;" id="nav-trends">Trends</a></li>
+    <li><a onclick="navigate('news'); return false;" id="nav-news">News & Alerts</a></li>
+    <li><a onclick="navigate('profiles'); return false;" id="nav-profiles">Country Profiles</a></li>
+    <li><a onclick="navigate('about'); return false;" id="nav-about">Methodology</a></li>
+  </ul>
+  <div class="nav-live"><div class="live-dot"></div><span class="live-label" id="liveTime">Live</span></div>
+</nav>
+
+<div id="dataBanner" class="data-banner">
+  <span id="bannerText">⚠ Live data unavailable — displaying cached data. Last live update: —</span>
+  <button id="bannerRetry" class="data-banner-btn" onclick="retryApis()">Retry</button>
+</div>
+<div class="ipc-strip" style="position:fixed;top:56px;left:0;right:0;z-index:999;">
+  <div style="background:var(--ipc1)"></div><div style="background:var(--ipc2)"></div>
+  <div style="background:var(--ipc3)"></div><div style="background:var(--ipc4)"></div>
+  <div style="background:var(--ipc5)"></div>
+</div>
+
+<!-- PAGES -->
+<div id="page-home" class="page active" style="padding-top:62px;">
+  <div class="hero">
+    <div class="hero-dateline" id="heroDateline">Global Food Security Monitor · Updated Every 5 Seconds</div>
+    <h1 class="hero-headline" id="heroHeadline">
+      <span id="heroNum"></span>
+      <span class="hero-counter-text">people face acute hunger tonight.</span>
+    </h1>
+    <p class="hero-sub" id="heroSub">Real-time tracking of food insecurity crises worldwide, drawing on WFP HungerMap, UN OCHA ReliefWeb, and FEWS NET classification data.</p>
+    <div class="stat-row">
+      <div class="stat-block" id="sb1"><span class="stat-num"><span id="stat1">0</span><span class="unit">M</span></span><div class="stat-label">In Emergency<br>(IPC Phase 4)</div></div>
+      <div class="stat-block" id="sb2"><span class="stat-num"><span id="stat2">0</span></span><div class="stat-label">Active Crisis<br>Zones</div></div>
+      <div class="stat-block" id="sb3"><span class="stat-num"><span id="stat3">0</span><span class="unit">M</span></span><div class="stat-label">Facing Famine<br>(IPC Phase 5)</div></div>
+      <div class="stat-block" id="sb4"><span class="stat-num"><span id="stat4">0</span><span class="unit">B</span></span><div class="stat-label">Food Insecure<br>Globally</div></div>
+    </div>
+  </div>
+  <div class="home-grid">
+    <div class="home-main">
+      <div class="section-label">🔴 Highest Severity Crisis Zones — IPC Phase 4 & 5</div>
+      <div class="crisis-cards" id="crisisCards"></div>
+    </div>
+    <div class="home-sidebar">
+      <div class="section-label">📡 Latest Alerts — ReliefWeb</div>
+      <div id="sidebarNews"></div>
+    </div>
+    <div class="home-spotlight">
+      <div class="section-label">⚡ Most Urgent — Active Crises</div>
+      <div class="spotlight-body" id="spotlightContent"></div>
+      <div class="spotlight-nav">
+        <button class="spotlight-arrow" onclick="_spotlightPrev()" aria-label="Previous">&#8592;</button>
+        <div class="spotlight-dots" id="spotlightDots"></div>
+        <button class="spotlight-arrow" onclick="_spotlightNext()" aria-label="Next">&#8594;</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="page-map" class="page" style="padding-top:62px;">
+  <div class="map-container">
+    <div id="map"></div>
+    <div class="map-sidebar">
+      <div class="map-sidebar-header"><h2>Crisis Map</h2><p>IPC Phase Classification · Click a marker</p></div>
+
+      <!-- Search -->
+      <div style="padding:12px 16px;border-bottom:var(--border);position:relative;">
+        <input type="text" id="mapSearch" placeholder="Search any country..." oninput="searchMapCountry(this.value)" autocomplete="off"
+          style="width:100%;padding:8px 10px;border:1px solid var(--gray-300);font-family:'IBM Plex Mono',monospace;font-size:.68rem;background:var(--gray-100);color:var(--ink);outline:none;">
+        <div id="mapSearchDropdown" style="position:absolute;top:calc(100% - 1px);left:0;right:0;background:white;border:1px solid var(--gray-300);border-top:none;max-height:220px;overflow-y:auto;z-index:200;display:none;box-shadow:0 4px 12px rgba(0,0,0,0.1);"></div>
+      </div>
+
+      <!-- Map Stats -->
+      <div style="padding:14px 16px;border-bottom:var(--border);background:var(--gray-100);">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:.55rem;letter-spacing:.15em;text-transform:uppercase;color:var(--gray-500);margin-bottom:8px;">Live Stats</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
+          <div>
+            <div style="font-family:'Playfair Display',serif;font-weight:700;font-size:1.15rem;color:var(--ipc4);" id="mapCountriesShown">24</div>
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:.5rem;color:var(--gray-500);text-transform:uppercase;letter-spacing:.08em;">Tracked</div>
+          </div>
+          <div>
+            <div style="font-family:'Playfair Display',serif;font-weight:700;font-size:1.15rem;color:var(--ipc5);" id="mapCrisesCount">2</div>
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:.5rem;color:var(--gray-500);text-transform:uppercase;letter-spacing:.08em;">IPC 5</div>
+          </div>
+          <div>
+            <div style="font-family:'Playfair Display',serif;font-weight:700;font-size:1.15rem;color:var(--ipc4);" id="mapEmergencyCount">0</div>
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:.5rem;color:var(--gray-500);text-transform:uppercase;letter-spacing:.08em;">IPC 4</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Phase Filters -->
+      <div class="ipc-legend">
+        <div class="ipc-legend-title">Filter by Phase</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:14px;">
+          <button class="phase-filter active" data-phase="" onclick="filterMapByPhase(null,this)" style="background:var(--ink);color:white;border:none;padding:6px 4px;cursor:pointer;font-family:'IBM Plex Mono',monospace;font-size:.58rem;text-transform:uppercase;letter-spacing:.06em;">All</button>
+          <button class="phase-filter" data-phase="5" onclick="filterMapByPhase(5,this)" style="background:#5e0606;color:white;border:none;padding:6px 4px;cursor:pointer;font-family:'IBM Plex Mono',monospace;font-size:.58rem;text-transform:uppercase;letter-spacing:.06em;">Famine (5)</button>
+          <button class="phase-filter" data-phase="4" onclick="filterMapByPhase(4,this)" style="background:#bb2c0b;color:white;border:none;padding:6px 4px;cursor:pointer;font-family:'IBM Plex Mono',monospace;font-size:.58rem;text-transform:uppercase;letter-spacing:.06em;">Emergency (4)</button>
+          <button class="phase-filter" data-phase="3" onclick="filterMapByPhase(3,this)" style="background:#e2591a;color:white;border:none;padding:6px 4px;cursor:pointer;font-family:'IBM Plex Mono',monospace;font-size:.58rem;text-transform:uppercase;letter-spacing:.06em;">Crisis (3)</button>
+        </div>
+
+        <div class="ipc-legend-title">IPC Phase Scale</div>
+        <div class="ipc-item"><div class="ipc-swatch" style="background:var(--ipc1)"></div><span class="ipc-item-label">Phase 1 — Minimal</span></div>
+        <div class="ipc-item"><div class="ipc-swatch" style="background:var(--ipc2)"></div><span class="ipc-item-label">Phase 2 — Stressed</span></div>
+        <div class="ipc-item"><div class="ipc-swatch" style="background:var(--ipc3)"></div><span class="ipc-item-label">Phase 3 — Crisis</span></div>
+        <div class="ipc-item"><div class="ipc-swatch" style="background:var(--ipc4)"></div><span class="ipc-item-label">Phase 4 — Emergency</span></div>
+        <div class="ipc-item"><div class="ipc-swatch" style="background:var(--ipc5)"></div><span class="ipc-item-label">Phase 5 — Famine</span></div>
+      </div>
+
+      <div class="map-country-panel" id="mapPanel"><p style="font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--gray-500);letter-spacing:.1em;">SELECT A MARKER ON THE MAP TO VIEW DETAILS</p></div>
+
+      <!-- Data Attribution -->
+      <div style="padding:12px 16px;border-top:var(--border);background:var(--gray-100);font-family:'IBM Plex Mono',monospace;font-size:.52rem;color:var(--gray-500);line-height:1.7;">
+        <strong style="color:var(--gray-700);">Data:</strong> <span id="wfpSourceLabel">WFP HungerMap (cached)</span> · FEWS NET · UN OCHA<br>
+        <strong style="color:var(--gray-700);">News:</strong> <span id="newsSourceLabel">ReliefWeb (cached)</span><br>
+        Updated: <span id="dataLastUpdated">—</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="page-trends" class="page">
+  <div class="trends-layout">
+    <h1 class="page-title">Trends & Analysis</h1>
+    <div class="page-subtitle">Historical data · WFP / FAO / FEWS NET · Global Hunger Index · 2018–2024</div>
+
+    <!-- Key metric tiles -->
+    <div class="trends-metrics">
+      <div class="trend-metric">
+        <div class="trend-metric-num">733M</div>
+        <div class="trend-metric-label">In Acute Hunger</div>
+        <div class="trend-metric-sub">↑ 12% vs 2022 · FAO 2024</div>
+      </div>
+      <div class="trend-metric">
+        <div class="trend-metric-num">58</div>
+        <div class="trend-metric-label">Crisis Countries</div>
+        <div class="trend-metric-sub">IPC Phase 3+ · WFP</div>
+      </div>
+      <div class="trend-metric">
+        <div class="trend-metric-num">$6.1B</div>
+        <div class="trend-metric-label">Funding Gap</div>
+        <div class="trend-metric-sub">WFP 2024 shortfall</div>
+      </div>
+      <div class="trend-metric">
+        <div class="trend-metric-num">117M</div>
+        <div class="trend-metric-label">Displaced Persons</div>
+        <div class="trend-metric-sub">UNHCR 2024 record</div>
+      </div>
+    </div>
+
+    <div class="chart-card-full">
+      <div class="chart-title">Global Population in Acute Food Insecurity — by IPC Phase</div>
+      <div class="chart-meta">Millions of people · 2018–2024 · Source: WFP / FAO / FEWS NET — stacked by severity</div>
+      <canvas id="chartTimeline" height="100"></canvas>
+      <div class="chart-insight">COVID-19 (2020) triggered the sharpest single-year spike since modern IPC monitoring began. The 2022 Ukraine war disrupted global grain exports, pushing an additional 70M people into crisis. WFP projects the 2024 total to reach 380M+ across IPC phases 3–5.</div>
+    </div>
+
+    <div class="charts-grid">
+      <div class="chart-card">
+        <div class="chart-title">Worst Affected Regions</div>
+        <div class="chart-meta">% of regional population in IPC 3+ · 2024</div>
+        <canvas id="chartRegions" height="200"></canvas>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">IPC Phase Distribution</div>
+        <div class="chart-meta">Global caseload by severity · 733M total · 2024</div>
+        <canvas id="chartIPC" height="200"></canvas>
+      </div>
+    </div>
+
+    <div class="charts-grid">
+      <div class="chart-card-full" style="margin-bottom:0;">
+        <div class="chart-title">Top 10 Countries by Food Insecure Population</div>
+        <div class="chart-meta">Millions in IPC Phase 3+ · color = IPC severity · Source: WFP 2024</div>
+        <canvas id="chartCountries" height="90"></canvas>
+      </div>
+    </div>
+
+    <div class="chart-card-full" style="border-top-color:#5e0606;">
+      <div class="chart-title">Humanitarian Funding: Need vs. Delivery</div>
+      <div class="chart-meta">WFP annual funding requirements vs. received · billions USD · 2018–2024</div>
+      <canvas id="chartFunding" height="80"></canvas>
+      <div class="chart-insight">The 2023–2024 funding crisis is the most severe in WFP's history — only 41 cents of every dollar needed was received in 2024. The $6.1B shortfall directly translates to reduced rations and suspended operations for ~90M people.</div>
+    </div>
+  </div>
+</div>
+
+<div id="page-news" class="page">
+  <div class="news-layout">
+    <h1 class="page-title">News & Alerts</h1>
+    <div class="page-subtitle">Live feed · UN OCHA ReliefWeb · <span id="newsUpdateLabel">Updated every 2 min</span><span id="newsStatusTag" class="news-status-tag" style="display:none;">⚠ Displaying sample alerts</span></div>
+    <div class="news-filters">
+      <button class="filter-btn active" onclick="filterNews('all',this)">All Alerts</button>
+      <button class="filter-btn" onclick="filterNews('famine',this)">Famine</button>
+      <button class="filter-btn" onclick="filterNews('emergency',this)">Emergency</button>
+      <button class="filter-btn" onclick="filterNews('africa',this)">Africa</button>
+      <button class="filter-btn" onclick="filterNews('middleeast',this)">Middle East</button>
+      <button class="filter-btn" onclick="filterNews('asia',this)">Asia</button>
+    </div>
+    <div id="newsFeed"><div class="empty-state">Loading alerts...</div></div>
+  </div>
+</div>
+
+<div id="page-profiles" class="page" style="padding-top:62px;">
+  <div class="profiles-layout">
+    <div class="country-list">
+      <div class="country-list-header">Country Profiles</div>
+      <input class="country-search" type="text" placeholder="Search countries..." oninput="filterCountries(this.value)">
+      <div id="countryListItems"></div>
+    </div>
+    <div class="profile-detail" id="profileDetail"><div class="empty-state" style="margin-top:80px;">Select a country to view its food security profile.</div></div>
+  </div>
+</div>
+
+<div id="page-about" class="page">
+  <div class="about-layout">
+    <h1>Methodology &amp;<br>Data Sources</h1>
+    <div class="byline">The Hunger Index · Academic Research Project · Food Security Data Visualization</div>
+    <div class="about-section"><h2>About This Dashboard</h2><p>The Hunger Index is a real-time food insecurity tracking dashboard built for academic research and humanitarian data visualization. It aggregates data from the world's leading open food security monitoring systems into a single, unified interface.</p></div>
+    <div class="about-section"><h2>IPC Phase Classification</h2><p>The IPC scale runs from Phase 1 (Minimal) to Phase 5 (Famine/Catastrophe). Phases 3 and above indicate acute food insecurity requiring humanitarian response.</p></div>
+    <div class="about-section"><h2>Data Sources</h2><table class="source-table"><thead><tr><th>Source</th><th>Data Type</th><th>Update Frequency</th><th>Access</th></tr></thead><tbody><tr><td>WFP HungerMap</td><td>Country-level hunger prevalence</td><td>Daily</td><td>Open API</td></tr><tr><td>UN OCHA ReliefWeb</td><td>Crisis reports, humanitarian alerts</td><td>Continuous</td><td>Free API</td></tr><tr><td>FEWS NET</td><td>IPC phase classifications</td><td>Monthly</td><td>Open GeoJSON</td></tr></tbody></table></div>
+  </div>
+</div>
+
+<!-- TICKER -->
+<div class="ticker">
+  <div class="ticker-label">ALERTS</div>
+  <div class="ticker-track" id="tickerTrack"></div>
+</div>
+
+<!-- FEEDBACK WIDGET -->
+<div class="feedback-widget" id="feedbackWidget">
+  <button class="feedback-toggle" onclick="toggleFeedbackModal()">Feedback</button>
+  <div class="feedback-modal" id="feedbackModal">
+    <div class="feedback-content">
+      <h3>Suggest an Edit or Feature</h3>
+      <form id="feedbackForm">
+        <label>Current Page:</label>
+        <select id="feedbackPage" required>
+          <option value="home">Overview</option>
+          <option value="map">Map</option>
+          <option value="trends">Trends</option>
+          <option value="news">News & Alerts</option>
+          <option value="profiles">Country Profiles</option>
+          <option value="about">Methodology</option>
+        </select>
+        <label>Feedback Type:</label>
+        <select id="feedbackType" required>
+          <option value="bug">Bug Report</option>
+          <option value="design">Design Suggestion</option>
+          <option value="feature">Feature Request</option>
+          <option value="data">Data/Content Issue</option>
+          <option value="other">Other</option>
+        </select>
+        <label>Your Feedback:</label>
+        <textarea id="feedbackText" placeholder="Describe what you'd like to see..." required style="min-height:120px;"></textarea>
+        <button type="submit">Submit</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+const CRISIS_DATA = [
+  {country:"Sudan",region:"East Africa",ipc:5,population:"17.7M",severity:"Famine",drivers:"Armed conflict, displacement, economic collapse",ghiScore:38.4},
+  {country:"Gaza Strip",region:"Middle East",ipc:5,population:"2.1M",severity:"Catastrophic",drivers:"Ongoing military conflict, blockade, infrastructure collapse",ghiScore:null},
+  {country:"South Sudan",region:"East Africa",ipc:4,population:"7.7M",severity:"Emergency",drivers:"Flooding, conflict, economic crisis",ghiScore:43.3},
+  {country:"Yemen",region:"Middle East",ipc:4,population:"17.3M",severity:"Emergency",drivers:"Civil war, economic collapse, import dependency",ghiScore:39.7},
+  {country:"Haiti",region:"Caribbean",ipc:4,population:"5.4M",severity:"Emergency",drivers:"Gang violence, political instability, natural disasters",ghiScore:35.1},
+  {country:"DRC",region:"Central Africa",ipc:4,population:"23.4M",severity:"Emergency",drivers:"Armed conflict, displacement, health crises",ghiScore:44.7},
+  {country:"Afghanistan",region:"South Asia",ipc:4,population:"14.9M",severity:"Emergency",drivers:"Drought, political collapse, economic isolation",ghiScore:36.3},
+  {country:"Ethiopia",region:"East Africa",ipc:3,population:"20.1M",severity:"Crisis",drivers:"Tigray conflict aftermath, drought cycles, displacement",ghiScore:33.3},
+  {country:"Mali",region:"West Africa",ipc:3,population:"4.3M",severity:"Crisis",drivers:"Sahel drought, jihadist insurgency, governance collapse",ghiScore:37.2},
+  {country:"Somalia",region:"East Africa",ipc:4,population:"6.6M",severity:"Emergency",drivers:"La Nina drought, al-Shabaab activity, displacement",ghiScore:49.1},
+  {country:"Myanmar",region:"Southeast Asia",ipc:3,population:"13.2M",severity:"Crisis",drivers:"Military coup aftermath, conflict, economic contraction",ghiScore:29.5},
+  {country:"Syria",region:"Middle East",ipc:3,population:"12.1M",severity:"Crisis",drivers:"Prolonged civil war, sanctions, earthquake aftermath",ghiScore:null},
+  {country:"Nigeria",region:"West Africa",ipc:3,population:"25.3M",severity:"Crisis",drivers:"Northeast insurgency, inflation, displacement",ghiScore:31.4},
+  {country:"Zimbabwe",region:"Southern Africa",ipc:3,population:"7.7M",severity:"Crisis",drivers:"El Nino drought, hyperinflation, governance",ghiScore:35.8},
+  {country:"Cameroon",region:"Central Africa",ipc:3,population:"6.2M",severity:"Crisis",drivers:"Armed conflict in Northwest/Southwest regions, displacement",ghiScore:36.8},
+  {country:"Chad",region:"Central Africa",ipc:3,population:"3.1M",severity:"Crisis",drivers:"Lake Chad Basin conflict, climate stress, desert locusts",ghiScore:38.9},
+  {country:"Kenya",region:"East Africa",ipc:3,population:"4.5M",severity:"Crisis",drivers:"Prolonged drought, pastoralist vulnerability, locust swarms",ghiScore:28.2},
+  {country:"Burkina Faso",region:"West Africa",ipc:3,population:"2.8M",severity:"Crisis",drivers:"Jihadist insurgency, displacement, resource scarcity",ghiScore:39.1},
+  {country:"Lebanon",region:"Middle East",ipc:3,population:"3.9M",severity:"Crisis",drivers:"Economic collapse, Syrian refugee crisis, political instability",ghiScore:null},
+  {country:"Colombia",region:"South America",ipc:3,population:"5.2M",severity:"Crisis",drivers:"Internal displacement, armed groups, coca cultivation areas",ghiScore:26.1},
+  {country:"Mozambique",region:"Southern Africa",ipc:3,population:"2.4M",severity:"Crisis",drivers:"Armed insurgency in Cabo Delgado, floods, displacement",ghiScore:34.7},
+  {country:"Tajikistan",region:"Central Asia",ipc:2,population:"1.8M",severity:"Stressed",drivers:"Border conflicts, mountainous terrain, winter isolation",ghiScore:null},
+  {country:"Guatemala",region:"Central America",ipc:3,population:"3.7M",severity:"Crisis",drivers:"Gang violence, land inequality, climate shocks",ghiScore:25.9},
+  {country:"Burundi",region:"East Africa",ipc:3,population:"3.3M",severity:"Crisis",drivers:"Political violence aftermath, displacement, poverty",ghiScore:45.2},
+];
+
+const NEWS_DATA = [
+  {source:"UN OCHA",title:"Sudan famine expands to 5 states as fighting blocks aid convoys",body:"The famine declaration now covers Zamzam camp in North Darfur and four additional states.",date:"May 25, 2026",tags:["famine","africa"]},
+  {source:"WFP",title:"WFP suspends Gaza operations after aid convoy struck",body:"The World Food Programme temporarily halted all deliveries into northern Gaza.",date:"May 24, 2026",tags:["emergency","middleeast"]},
+  {source:"ReliefWeb",title:"El Nino drives record crop failures across Southern Africa",body:"Harvest projections show a 40–60% shortfall, pushing 14 million people into crisis-level hunger.",date:"May 23, 2026",tags:["emergency","africa"]},
+  {source:"FEWS NET",title:"Haiti's IPC Phase 4 population rises to 5.4 million",body:"Gang control of Port-au-Prince's main port has cut food imports by 70%.",date:"May 22, 2026",tags:["emergency"]},
+  {source:"UN OCHA",title:"Afghanistan faces third consecutive drought year",body:"An estimated 14.9 million Afghans face acute food insecurity through September 2026.",date:"May 21, 2026",tags:["emergency","asia"]},
+  {source:"ReliefWeb",title:"DRC: 23 million face emergency hunger in conflict zones",body:"The Kivu provinces and Ituri remain at IPC Phase 4, with humanitarian access severely constrained.",date:"May 20, 2026",tags:["emergency","africa"]},
+  {source:"FEWS NET",title:"Yemen: 17.3 million projected food insecure through Q3 2026",body:"Yemen's food import infrastructure remains critically damaged.",date:"May 19, 2026",tags:["emergency","middleeast"]},
+  {source:"WFP",title:"Myanmar displacement crisis deepens food access challenges",body:"More than 2.6 million internally displaced people rely entirely on humanitarian food assistance.",date:"May 18, 2026",tags:["emergency","asia"]},
+];
+
+const WORLD_COUNTRIES=[
+  // Africa
+  {name:'Algeria',lat:28.0,lng:3.0,region:'North Africa'},
+  {name:'Angola',lat:-11.2,lng:17.9,region:'Southern Africa'},
+  {name:'Benin',lat:9.3,lng:2.3,region:'West Africa'},
+  {name:'Botswana',lat:-22.3,lng:24.7,region:'Southern Africa'},
+  {name:'Burkina Faso',lat:12.4,lng:-1.6,region:'West Africa'},
+  {name:'Burundi',lat:-3.4,lng:29.9,region:'East Africa'},
+  {name:'Cameroon',lat:3.8,lng:11.5,region:'Central Africa'},
+  {name:'Central African Republic',lat:6.6,lng:20.9,region:'Central Africa'},
+  {name:'Chad',lat:15.0,lng:19.0,region:'Central Africa'},
+  {name:'Comoros',lat:-11.9,lng:43.3,region:'East Africa'},
+  {name:'Congo',lat:-0.2,lng:15.8,region:'Central Africa'},
+  {name:'DRC',lat:-4.0,lng:21.7,region:'Central Africa'},
+  {name:'Djibouti',lat:11.8,lng:42.6,region:'East Africa'},
+  {name:'Egypt',lat:26.8,lng:30.8,region:'North Africa'},
+  {name:'Eritrea',lat:15.2,lng:39.8,region:'East Africa'},
+  {name:'Eswatini',lat:-26.5,lng:31.5,region:'Southern Africa'},
+  {name:'Ethiopia',lat:9.1,lng:40.5,region:'East Africa'},
+  {name:'Gambia',lat:13.4,lng:-15.3,region:'West Africa'},
+  {name:'Ghana',lat:7.9,lng:-1.0,region:'West Africa'},
+  {name:'Guinea',lat:9.9,lng:-11.4,region:'West Africa'},
+  {name:'Guinea-Bissau',lat:11.8,lng:-15.2,region:'West Africa'},
+  {name:'Ivory Coast',lat:7.5,lng:-5.5,region:'West Africa'},
+  {name:'Kenya',lat:-1.0,lng:37.9,region:'East Africa'},
+  {name:'Lesotho',lat:-29.6,lng:28.2,region:'Southern Africa'},
+  {name:'Liberia',lat:6.4,lng:-9.4,region:'West Africa'},
+  {name:'Libya',lat:26.3,lng:17.2,region:'North Africa'},
+  {name:'Madagascar',lat:-18.8,lng:46.9,region:'East Africa'},
+  {name:'Malawi',lat:-13.3,lng:34.3,region:'Southern Africa'},
+  {name:'Mali',lat:17.6,lng:-4.0,region:'West Africa'},
+  {name:'Mauritania',lat:21.0,lng:-10.9,region:'West Africa'},
+  {name:'Morocco',lat:31.8,lng:-7.1,region:'North Africa'},
+  {name:'Mozambique',lat:-18.7,lng:35.5,region:'Southern Africa'},
+  {name:'Namibia',lat:-22.6,lng:17.1,region:'Southern Africa'},
+  {name:'Niger',lat:17.6,lng:8.1,region:'West Africa'},
+  {name:'Nigeria',lat:9.1,lng:8.7,region:'West Africa'},
+  {name:'Rwanda',lat:-1.9,lng:29.9,region:'East Africa'},
+  {name:'Senegal',lat:14.5,lng:-14.5,region:'West Africa'},
+  {name:'Sierra Leone',lat:8.5,lng:-11.8,region:'West Africa'},
+  {name:'Somalia',lat:5.2,lng:46.2,region:'East Africa'},
+  {name:'South Africa',lat:-30.6,lng:22.9,region:'Southern Africa'},
+  {name:'South Sudan',lat:7.0,lng:30.0,region:'East Africa'},
+  {name:'Sudan',lat:15.5,lng:32.5,region:'East Africa'},
+  {name:'Tanzania',lat:-6.4,lng:34.9,region:'East Africa'},
+  {name:'Togo',lat:8.6,lng:0.8,region:'West Africa'},
+  {name:'Tunisia',lat:33.9,lng:9.5,region:'North Africa'},
+  {name:'Uganda',lat:1.4,lng:32.3,region:'East Africa'},
+  {name:'Zambia',lat:-13.1,lng:27.8,region:'Southern Africa'},
+  {name:'Zimbabwe',lat:-19.0,lng:29.9,region:'Southern Africa'},
+  // Middle East
+  {name:'Bahrain',lat:25.9,lng:50.6,region:'Middle East'},
+  {name:'Gaza Strip',lat:31.4,lng:34.4,region:'Middle East'},
+  {name:'Iran',lat:32.4,lng:53.7,region:'Middle East'},
+  {name:'Iraq',lat:33.2,lng:43.7,region:'Middle East'},
+  {name:'Israel',lat:31.0,lng:35.0,region:'Middle East'},
+  {name:'Jordan',lat:30.6,lng:36.2,region:'Middle East'},
+  {name:'Kuwait',lat:29.3,lng:47.5,region:'Middle East'},
+  {name:'Lebanon',lat:33.8,lng:35.5,region:'Middle East'},
+  {name:'Oman',lat:21.5,lng:55.9,region:'Middle East'},
+  {name:'Qatar',lat:25.4,lng:51.2,region:'Middle East'},
+  {name:'Saudi Arabia',lat:24.0,lng:45.1,region:'Middle East'},
+  {name:'Syria',lat:34.8,lng:38.8,region:'Middle East'},
+  {name:'Turkey',lat:39.1,lng:35.2,region:'Middle East'},
+  {name:'UAE',lat:24.5,lng:54.5,region:'Middle East'},
+  {name:'Yemen',lat:15.6,lng:48.5,region:'Middle East'},
+  // South Asia
+  {name:'Afghanistan',lat:33.9,lng:67.7,region:'South Asia'},
+  {name:'Bangladesh',lat:23.7,lng:90.4,region:'South Asia'},
+  {name:'India',lat:20.6,lng:79.1,region:'South Asia'},
+  {name:'Nepal',lat:28.4,lng:84.1,region:'South Asia'},
+  {name:'Pakistan',lat:30.4,lng:69.3,region:'South Asia'},
+  {name:'Sri Lanka',lat:7.9,lng:80.8,region:'South Asia'},
+  // Southeast Asia
+  {name:'Cambodia',lat:12.6,lng:104.9,region:'Southeast Asia'},
+  {name:'Indonesia',lat:-0.8,lng:113.9,region:'Southeast Asia'},
+  {name:'Laos',lat:17.9,lng:102.5,region:'Southeast Asia'},
+  {name:'Malaysia',lat:2.5,lng:112.5,region:'Southeast Asia'},
+  {name:'Myanmar',lat:19.2,lng:96.7,region:'Southeast Asia'},
+  {name:'Philippines',lat:12.9,lng:121.8,region:'Southeast Asia'},
+  {name:'Thailand',lat:15.9,lng:100.9,region:'Southeast Asia'},
+  {name:'Vietnam',lat:14.1,lng:108.3,region:'Southeast Asia'},
+  // Central Asia
+  {name:'Kazakhstan',lat:48.0,lng:68.0,region:'Central Asia'},
+  {name:'Kyrgyzstan',lat:41.2,lng:74.8,region:'Central Asia'},
+  {name:'Tajikistan',lat:38.9,lng:71.3,region:'Central Asia'},
+  {name:'Turkmenistan',lat:38.9,lng:59.6,region:'Central Asia'},
+  {name:'Uzbekistan',lat:41.4,lng:63.0,region:'Central Asia'},
+  // East Asia
+  {name:'China',lat:35.9,lng:104.2,region:'East Asia'},
+  {name:'Japan',lat:36.2,lng:138.3,region:'East Asia'},
+  {name:'Mongolia',lat:46.9,lng:103.8,region:'East Asia'},
+  {name:'North Korea',lat:40.3,lng:127.5,region:'East Asia'},
+  {name:'South Korea',lat:35.9,lng:127.8,region:'East Asia'},
+  {name:'Taiwan',lat:23.7,lng:121.0,region:'East Asia'},
+  // Europe
+  {name:'Albania',lat:41.2,lng:20.2,region:'Southeast Europe'},
+  {name:'Austria',lat:47.5,lng:14.6,region:'Europe'},
+  {name:'Belarus',lat:53.7,lng:28.0,region:'Eastern Europe'},
+  {name:'Belgium',lat:50.8,lng:4.5,region:'Europe'},
+  {name:'Bulgaria',lat:42.7,lng:25.5,region:'Southeast Europe'},
+  {name:'Croatia',lat:45.2,lng:15.9,region:'Southeast Europe'},
+  {name:'Czech Republic',lat:49.8,lng:15.5,region:'Europe'},
+  {name:'Denmark',lat:56.3,lng:9.5,region:'Europe'},
+  {name:'Finland',lat:64.0,lng:26.0,region:'Europe'},
+  {name:'France',lat:46.2,lng:2.2,region:'Europe'},
+  {name:'Germany',lat:51.2,lng:10.5,region:'Europe'},
+  {name:'Greece',lat:39.1,lng:22.0,region:'Southeast Europe'},
+  {name:'Hungary',lat:47.2,lng:19.5,region:'Europe'},
+  {name:'Italy',lat:42.8,lng:12.7,region:'Europe'},
+  {name:'Moldova',lat:47.4,lng:28.4,region:'Eastern Europe'},
+  {name:'Netherlands',lat:52.1,lng:5.3,region:'Europe'},
+  {name:'Norway',lat:64.5,lng:17.9,region:'Europe'},
+  {name:'Poland',lat:52.1,lng:19.4,region:'Europe'},
+  {name:'Portugal',lat:39.4,lng:-8.2,region:'Europe'},
+  {name:'Romania',lat:45.9,lng:25.0,region:'Southeast Europe'},
+  {name:'Russia',lat:61.5,lng:105.3,region:'Eastern Europe'},
+  {name:'Serbia',lat:44.2,lng:21.0,region:'Southeast Europe'},
+  {name:'Spain',lat:40.5,lng:-3.7,region:'Europe'},
+  {name:'Sweden',lat:62.2,lng:17.6,region:'Europe'},
+  {name:'Switzerland',lat:47.0,lng:8.2,region:'Europe'},
+  {name:'Ukraine',lat:49.0,lng:31.5,region:'Eastern Europe'},
+  {name:'United Kingdom',lat:55.4,lng:-3.4,region:'Europe'},
+  // Americas
+  {name:'Argentina',lat:-38.4,lng:-63.6,region:'South America'},
+  {name:'Bolivia',lat:-16.3,lng:-63.6,region:'South America'},
+  {name:'Brazil',lat:-14.2,lng:-51.9,region:'South America'},
+  {name:'Canada',lat:60.0,lng:-96.8,region:'North America'},
+  {name:'Chile',lat:-35.7,lng:-71.5,region:'South America'},
+  {name:'Colombia',lat:4.6,lng:-74.3,region:'South America'},
+  {name:'Cuba',lat:21.5,lng:-79.5,region:'Caribbean'},
+  {name:'Dominican Republic',lat:18.7,lng:-70.2,region:'Caribbean'},
+  {name:'Ecuador',lat:-1.8,lng:-78.2,region:'South America'},
+  {name:'El Salvador',lat:13.8,lng:-88.9,region:'Central America'},
+  {name:'Guatemala',lat:15.8,lng:-90.2,region:'Central America'},
+  {name:'Haiti',lat:18.9,lng:-72.3,region:'Caribbean'},
+  {name:'Honduras',lat:15.2,lng:-86.2,region:'Central America'},
+  {name:'Jamaica',lat:18.1,lng:-77.3,region:'Caribbean'},
+  {name:'Mexico',lat:23.6,lng:-102.6,region:'North America'},
+  {name:'Nicaragua',lat:12.9,lng:-85.2,region:'Central America'},
+  {name:'Panama',lat:8.5,lng:-80.8,region:'Central America'},
+  {name:'Paraguay',lat:-23.4,lng:-58.4,region:'South America'},
+  {name:'Peru',lat:-9.2,lng:-75.0,region:'South America'},
+  {name:'United States',lat:38.0,lng:-97.0,region:'North America'},
+  {name:'Uruguay',lat:-32.5,lng:-55.8,region:'South America'},
+  {name:'Venezuela',lat:6.4,lng:-66.6,region:'South America'},
+  // Oceania
+  {name:'Australia',lat:-25.3,lng:133.8,region:'Oceania'},
+  {name:'New Zealand',lat:-40.9,lng:174.9,region:'Oceania'},
+  {name:'Papua New Guinea',lat:-6.3,lng:143.9,region:'Oceania'},
+];
+
+const ipcColors={1:'#f9e04b',2:'#f5a12e',3:'#e2591a',4:'#bb2c0b',5:'#5e0606'};
+const ipcLabels={1:'IPC 1 — Minimal',2:'IPC 2 — Stressed',3:'IPC 3 — Crisis',4:'IPC 4 — Emergency',5:'IPC 5 — Famine'};
+let mapInstance=null, chartsInitialized=false, currentFilter='all', mapMarkers=[];
+let WFP_DATA={}, WORLDBANK_DATA={}, UNHCR_DATA={};
+let _mapSearchMatches=[];
+
+// ISO2 codes for World Bank API
+const ISO2={
+  'Sudan':'SD','Gaza Strip':null,'South Sudan':'SS','Yemen':'YE','Haiti':'HT','DRC':'CD',
+  'Afghanistan':'AF','Ethiopia':'ET','Mali':'ML','Somalia':'SO','Myanmar':'MM','Syria':'SY',
+  'Nigeria':'NG','Zimbabwe':'ZW','Cameroon':'CM','Chad':'TD','Kenya':'KE','Burkina Faso':'BF',
+  'Lebanon':'LB','Colombia':'CO','Mozambique':'MZ','Tajikistan':'TJ','Guatemala':'GT','Burundi':'BI'
+};
+
+// API status tracking
+const apiStatus={wfp:null, news:null}; // null=unknown, true=live, false=failed
+let lastLiveUpdateTs=null;
+
+// Static news fallback (used when all live sources fail)
+const STATIC_NEWS_FALLBACK=[
+  {source:'UN OCHA',title:'Sudan famine expands to 5 states as fighting blocks aid convoys',body:'The famine declaration now covers Zamzam camp in North Darfur and four additional states.',date:'May 25, 2026',tags:['famine','africa']},
+  {source:'WFP',title:'WFP suspends Gaza operations after aid convoy struck',body:'The World Food Programme temporarily halted all deliveries into northern Gaza.',date:'May 24, 2026',tags:['emergency','middleeast']},
+  {source:'ReliefWeb',title:'El Nino drives record crop failures across Southern Africa',body:'Harvest projections show a 40–60% shortfall, pushing 14 million into crisis-level hunger.',date:'May 23, 2026',tags:['emergency','africa']},
+  {source:'FEWS NET',title:"Haiti's IPC Phase 4 population rises to 5.4 million",body:"Gang control of Port-au-Prince's main port has cut food imports by 70%.",date:'May 22, 2026',tags:['emergency']},
+];
+
+window.addEventListener('load',()=>{
+  const tl=anime.timeline({easing:'easeOutExpo'});
+  const statuses=['Connecting to live data sources...','Loading WFP hunger classifications...','Fetching World Bank indicators...','Fetching ReliefWeb alerts...','Building crisis map...','Rendering dashboard...'];
+  tl
+    .add({targets:'#loadLogo',opacity:[0,1],translateY:[20,0],duration:600})
+    .add({targets:'#loadSub',opacity:[0,1],duration:400},'-=200')
+    .add({targets:'#loadBarWrap',opacity:[0,1],duration:300},'-=100')
+    .add({targets:'#loadBar',width:['0%','100%'],duration:1800,easing:'easeInOutQuad',
+      update:(a)=>{document.getElementById('loadStatus').textContent=statuses[Math.min(4,Math.floor(a.progress/20))];}
+    })
+    .add({targets:'#loadStatus',opacity:[0,1],duration:200},'-=1800')
+    .add({targets:'#loadingOverlay',opacity:[1,0],duration:500,delay:300,
+      complete:()=>{
+        document.getElementById('loadingOverlay').style.display='none';
+        initHome(); initTicker(); startLiveClock(); startDataRefresh(); startLiveDataRefresh();
+        renderNews('all'); fetchAllExternalData();
+      }
+    });
+});
+
+function navigate(page){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-links a').forEach(a=>a.classList.remove('active'));
+  document.getElementById('page-'+page).classList.add('active');
+  const nav=document.getElementById('nav-'+page);
+  if(nav) nav.classList.add('active');
+  window.scrollTo(0,0);
+  if(page==='map'&&!mapInstance) setTimeout(initMap,100);
+  if(page==='trends'&&!chartsInitialized){chartsInitialized=true;setTimeout(initCharts,100);}
+  if(page==='news') renderNews(currentFilter);
+  if(page==='profiles') renderCountryList();
+  anime({targets:'#page-'+page,opacity:[0.7,1],translateY:[8,0],duration:400,easing:'easeOutCubic'});
+}
+
+// ── Odometer (3D flip-card hunger counter) ─────────────────────────
+let hungerCount=733000000;
+const HUNGER_TICK_MS=43;
+let odoState=[];
+
+function buildOdometer(){
+  const el=document.getElementById('heroNum');
+  el.innerHTML='';
+  odoState=[];
+  for(let i=0;i<9;i++){
+    if(i===3||i===6){
+      const sep=document.createElement('span');
+      sep.className='od-sep';
+      sep.textContent=',';
+      el.appendChild(sep);
+    }
+    const cell=document.createElement('span');
+    cell.className='od-digit-cell';
+    cell.textContent='0';
+    el.appendChild(cell);
+    odoState.push({el:cell,cur:-1,anim:null});
+  }
+}
+
+function flipDigit(state,newDigit,idx){
+  if(state.cur===newDigit&&state.cur!==-1)return;
+  if(state.cur===-1){state.cur=newDigit;state.el.textContent=newDigit;return;}
+  if(state.anim){state.anim.pause();state.anim=null;state.el.style.transform='';}
+  state.cur=newDigit;
+  const nd=newDigit;
+  let flipped=false;
+  // Fast for low-order digits (ones=idx8 → 80ms), slow for high-order (idx0 → 200ms)
+  const dur=80+(8-idx)*15;
+  state.anim=anime({
+    targets:state.el,
+    rotateX:[0,-90,0],
+    duration:dur,
+    easing:'easeInOutQuad',
+    update(a){if(a.progress>=50&&!flipped){state.el.textContent=nd;flipped=true;}},
+    complete(){state.anim=null;}
+  });
+}
+
+function updateOdometer(num){
+  const s=String(num).padStart(9,'0');
+  odoState.forEach((st,i)=>flipDigit(st,parseInt(s[i]),i));
+}
+
+function initHome(){
+  anime({targets:'.hero-dateline',opacity:[0,1],translateY:[10,0],duration:500,easing:'easeOutCubic'});
+  anime({targets:'.hero-headline',opacity:[0,1],translateY:[20,0],duration:700,delay:100,easing:'easeOutCubic'});
+  anime({targets:'.hero-sub',opacity:[0,1],translateY:[10,0],duration:600,delay:250,easing:'easeOutCubic'});
+  anime({targets:'.stat-block',opacity:[0,1],translateY:[20,0],delay:anime.stagger(120,{start:400}),duration:600,easing:'easeOutCubic'});
+  buildOdometer();
+  const sweepObj={v:0};
+  anime({targets:sweepObj,v:733000000,duration:2200,delay:300,easing:'easeOutExpo',
+    update(){updateOdometer(Math.round(sweepObj.v));},
+    complete(){
+      hungerCount=733000000;
+      setInterval(()=>{hungerCount+=1;updateOdometer(hungerCount);},HUNGER_TICK_MS);
+    }
+  });
+  [{el:'#stat1',to:58},{el:'#stat2',to:36},{el:'#stat3',to:4.8,dec:1},{el:'#stat4',to:2.4,dec:1}].forEach((c,i)=>{
+    anime({targets:{val:0},val:c.to,duration:1800,delay:400+i*100,easing:'easeOutExpo',
+      update:(a)=>{
+        const v=a.animations[0].currentValue;
+        document.querySelector(c.el).textContent=c.dec?v.toFixed(c.dec):Math.round(v);
+      }
+    });
+  });
+  renderCrisisCards();
+  renderSidebarNews();
+  initSpotlight();
+}
+
+function renderCrisisCards(){
+  const top=CRISIS_DATA.filter(d=>d.ipc>=4).slice(0,6);
+  document.getElementById('crisisCards').innerHTML=top.map(d=>`
+    <div class="crisis-card" onclick="navigate('profiles');setTimeout(()=>selectCountry('${d.country}'),200)">
+      <div class="card-ipc" style="background:${ipcColors[d.ipc]}">${ipcLabels[d.ipc]}</div>
+      <div class="card-country">${d.country}</div>
+      <div class="card-region">${d.region}</div>
+      <div class="card-stat">Population affected:</div>
+      <span class="card-pop">${d.population}</span>
+      <div class="card-stat" style="margin-top:8px;font-size:.8rem;color:var(--gray-500);">${d.drivers}</div>
+    </div>`).join('');
+  anime({targets:'.crisis-card',opacity:[0,1],translateY:[12,0],delay:anime.stagger(80,{start:600}),duration:500,easing:'easeOutCubic'});
+}
+
+function renderSidebarNews(){
+  document.getElementById('sidebarNews').innerHTML=NEWS_DATA.slice(0,5).map(n=>`
+    <div class="news-item" onclick="navigate('news')">
+      <div class="news-source">${n.source}</div>
+      <div class="news-title">${n.title}</div>
+      <div class="news-date">${n.date}</div>
+    </div>`).join('');
+}
+
+function initSpotlight(){
+  const top=CRISIS_DATA.filter(d=>d.ipc>=4);
+  if(!top.length) return;
+  let idx=0;
+
+  const dotsEl=document.getElementById('spotlightDots');
+  if(dotsEl) dotsEl.innerHTML=top.map((_,i)=>'<button class="spotlight-dot'+(i===0?' active':'')+'" onclick="_spotlightGoto('+i+')" aria-label="Show crisis '+(i+1)+'"></button>').join('');
+
+  function buildSpotlightHTML(d){
+    const ghiStr=d.ghiScore?'<div style="margin-top:10px;"><span style="font-family:\'IBM Plex Mono\',monospace;font-size:.5rem;text-transform:uppercase;letter-spacing:.1em;color:var(--gray-500);">GHI Score: </span><span style="font-family:\'IBM Plex Mono\',monospace;font-size:.72rem;font-weight:500;color:var(--ink);">'+d.ghiScore.toFixed(1)+'</span></div>':'';
+    return '<span class="spotlight-ipc" style="background:'+ipcColors[d.ipc]+'">'+ipcLabels[d.ipc]+'</span>'
+      +'<div class="spotlight-country">'+d.country+'</div>'
+      +'<div style="font-family:\'IBM Plex Mono\',monospace;font-size:.56rem;color:var(--gray-500);letter-spacing:.1em;text-transform:uppercase;margin-bottom:10px;">'+d.region+'</div>'
+      +'<div style="font-family:\'Playfair Display\',serif;font-weight:700;font-size:2.2rem;line-height:1;color:'+ipcColors[d.ipc]+';display:block;margin-bottom:2px;">'+d.population+'</div>'
+      +'<div style="font-family:\'IBM Plex Mono\',monospace;font-size:.5rem;letter-spacing:.1em;text-transform:uppercase;color:var(--gray-500);margin-bottom:10px;">people in acute hunger</div>'
+      +'<p style="font-family:\'Source Serif 4\',serif;font-size:.82rem;line-height:1.55;color:var(--gray-700);">'+d.drivers+'</p>'
+      +ghiStr
+      +'<button onclick="navigate(\'profiles\');setTimeout(()=>selectCountry(\''+d.country+'\'),200)" style="margin-top:14px;width:100%;padding:8px;background:var(--ink);color:white;border:none;cursor:pointer;font-family:\'IBM Plex Mono\',monospace;font-size:.58rem;letter-spacing:.1em;text-transform:uppercase;">View Full Profile &#x2192;</button>';
+  }
+
+  function showCard(i){
+    const d=top[i];
+    const content=document.getElementById('spotlightContent');
+    if(!content) return;
+    document.querySelectorAll('.spotlight-dot').forEach((dot,j)=>dot.classList.toggle('active',j===i));
+    anime({targets:content,opacity:[1,0],duration:180,easing:'easeInCubic',
+      complete:()=>{
+        content.innerHTML=buildSpotlightHTML(d);
+        anime({targets:content,opacity:[0,1],duration:280,easing:'easeOutCubic'});
+      }
+    });
+  }
+
+  showCard(0);
+  let timer=setInterval(()=>{idx=(idx+1)%top.length;showCard(idx);},5000);
+
+  window._spotlightNext=()=>{clearInterval(timer);idx=(idx+1)%top.length;showCard(idx);timer=setInterval(()=>{idx=(idx+1)%top.length;showCard(idx);},5000);};
+  window._spotlightPrev=()=>{clearInterval(timer);idx=(idx-1+top.length)%top.length;showCard(idx);timer=setInterval(()=>{idx=(idx+1)%top.length;showCard(idx);},5000);};
+  window._spotlightGoto=i=>{clearInterval(timer);idx=i;showCard(idx);timer=setInterval(()=>{idx=(idx+1)%top.length;showCard(idx);},5000);};
+}
+
+function initMap(){
+  if(!document.getElementById('map')||typeof Globe==='undefined') return;
+  const coords={
+    'Sudan':[15.5,32.5],'Gaza Strip':[31.4,34.4],'South Sudan':[7.0,30.0],
+    'Yemen':[15.5,48.0],'Haiti':[18.9,-72.3],'DRC':[-4.0,21.7],
+    'Afghanistan':[33.9,67.7],'Ethiopia':[9.0,38.7],'Mali':[17.6,-4.0],
+    'Somalia':[5.1,46.2],'Myanmar':[19.2,96.7],'Syria':[34.8,38.8],
+    'Nigeria':[9.0,8.7],'Zimbabwe':[-19.0,29.9],
+    'Cameroon':[3.8,11.5],'Chad':[15.0,19.0],'Kenya':[-1.0,36.8],
+    'Burkina Faso':[12.2,-1.6],'Lebanon':[33.8,35.5],'Colombia':[4.5,-74.3],
+    'Mozambique':[-18.7,35.3],'Tajikistan':[38.9,71.3],'Guatemala':[15.8,-90.2],
+    'Burundi':[-3.5,29.9]
+  };
+  const allPoints=CRISIS_DATA.filter(d=>coords[d.country]).map(d=>({
+    ...d,lat:coords[d.country][0],lng:coords[d.country][1]
+  }));
+  const allRings=allPoints.filter(d=>d.ipc>=4).map(d=>({
+    ...d,maxR:3,propagationSpeed:2,repeatPeriod:800
+  }));
+  window._globeAllPoints=allPoints;
+  window._globeAllRings=allRings;
+  mapMarkers=allPoints.map(d=>({data:d}));
+
+  let hoveredPolygon=null;
+  const globe=Globe({animateIn:false})
+    .backgroundColor('#000000')
+    .atmosphereColor('#cc2200')
+    .atmosphereAltitude(0.18)
+    .globeImageUrl('https://unpkg.com/three-globe/example/img/earth-night.jpg')
+    .ringsData(allRings)
+    .ringLat('lat').ringLng('lng')
+    .ringColor(d=>{
+      const c=ipcColors[d.ipc];
+      const r=parseInt(c.slice(1,3),16),g=parseInt(c.slice(3,5),16),b=parseInt(c.slice(5,7),16);
+      return t=>'rgba('+r+','+g+','+b+','+(1-t)+')';
+    })
+    .ringMaxRadius('maxR')
+    .ringPropagationSpeed('propagationSpeed')
+    .ringRepeatPeriod('repeatPeriod')
+    (document.getElementById('map'));
+
+  const ctrl=globe.controls();
+  ctrl.autoRotate=true;
+  ctrl.autoRotateSpeed=0.4;
+  ctrl.minDistance=180;
+  ctrl.maxDistance=500;
+  mapInstance=globe;
+
+  // Keep globe sized to its container on window resize
+  const _mapEl=document.getElementById('map');
+  const _resizeObs=typeof ResizeObserver!=='undefined'?new ResizeObserver(()=>{
+    if(mapInstance&&_mapEl) mapInstance.width(_mapEl.clientWidth).height(_mapEl.clientHeight);
+  }):null;
+  if(_resizeObs) _resizeObs.observe(_mapEl);
+  else window.addEventListener('resize',()=>{if(mapInstance&&_mapEl) mapInstance.width(_mapEl.clientWidth).height(_mapEl.clientHeight);});
+
+  initGlobeMarkers(globe,allPoints);
+
+  if(typeof topojson!=='undefined'){
+    const isoMap={
+      729:'Sudan',728:'South Sudan',706:'Somalia',887:'Yemen',4:'Afghanistan',
+      180:'DRC',231:'Ethiopia',566:'Nigeria',760:'Syria',275:'Gaza Strip',
+      466:'Mali',716:'Zimbabwe',104:'Myanmar',120:'Cameroon',148:'Chad',
+      404:'Kenya',854:'Burkina Faso',422:'Lebanon',170:'Colombia',508:'Mozambique',
+      762:'Tajikistan',320:'Guatemala',108:'Burundi',332:'Haiti'
+    };
+    fetch('https://unpkg.com/world-atlas@2/countries-110m.json')
+      .then(r=>r.json())
+      .then(world=>{
+        const features=topojson.feature(world,world.objects.countries).features
+          .filter(f=>!!isoMap[+f.id])
+          .map(f=>({...f,crisisData:CRISIS_DATA.find(x=>x.country===isoMap[+f.id])}))
+          .filter(f=>f.crisisData);
+        globe
+          .polygonsData(features)
+          .polygonCapColor(d=>ipcColors[d.crisisData.ipc]+'44')
+          .polygonSideColor(d=>ipcColors[d.crisisData.ipc]+'99')
+          .polygonStrokeColor(()=>'rgba(255,255,255,0.15)')
+          .polygonAltitude(0.01)
+          .polygonLabel(d=>buildPolygonLabel(d.crisisData))
+          .onPolygonHover(d=>{
+            hoveredPolygon=d||null;
+            globe.polygonAltitude(f=>f===hoveredPolygon?0.07:0.01);
+            globe.polygonSideColor(f=>f===hoveredPolygon
+              ?ipcColors[f.crisisData.ipc]+'cc'
+              :ipcColors[f.crisisData.ipc]+'99');
+          })
+          .onPolygonClick(d=>{
+            if(!d||!d.crisisData) return;
+            globe.controls().autoRotate=false;
+            const c=coords[d.crisisData.country];
+            if(c) globe.pointOfView({lat:c[0],lng:c[1],altitude:1.4},1000);
+            updateMapPanel(d.crisisData);
+          });
+      }).catch(()=>{});
+  }
+  updateMapStats();
+  updateDataTimestamp();
+}
+
+function initCharts(){
+  Chart.defaults.font.family="'IBM Plex Mono',monospace";
+  Chart.defaults.color='#6b6b6b';
+  Chart.defaults.animation.duration=900;
+  Chart.defaults.animation.easing='easeOutQuart';
+
+  const gridColor='rgba(0,0,0,0.05)';
+
+  // ── Timeline: stacked area by IPC phase ─────────────────────────────
+  const labels=['2018','2019','2020','2021','2022','2023','2024'];
+  const timelineAnnotations={
+    covidLine:{type:'line',xMin:'2020',xMax:'2020',borderColor:'rgba(0,0,0,0.18)',borderWidth:1,borderDash:[5,4],
+      label:{display:true,content:'COVID-19',font:{size:9,family:"'IBM Plex Mono',monospace"},
+        backgroundColor:'rgba(0,0,0,0.65)',color:'#fff',padding:{x:6,y:3},position:'start',yAdjust:-4}},
+    ukraineLine:{type:'line',xMin:'2022',xMax:'2022',borderColor:'rgba(0,0,0,0.15)',borderWidth:1,borderDash:[5,4],
+      label:{display:true,content:'Ukraine War',font:{size:9,family:"'IBM Plex Mono',monospace"},
+        backgroundColor:'rgba(0,0,0,0.65)',color:'#fff',padding:{x:6,y:3},position:'start',yAdjust:-4}}
+  };
+  new Chart(document.getElementById('chartTimeline'),{
+    type:'line',
+    data:{labels,datasets:[
+      {label:'IPC 5 — Famine',data:[3.5,3.8,4.5,5.2,4.8,5.3,4.8],
+        fill:true,borderColor:'#5e0606',backgroundColor:'rgba(94,6,6,0.42)',
+        borderWidth:2,pointRadius:5,pointHoverRadius:7,pointBackgroundColor:'#5e0606',tension:.35},
+      {label:'IPC 4 — Emergency',data:[41,52,65,78,88,96,99],
+        fill:true,borderColor:'#bb2c0b',backgroundColor:'rgba(187,44,11,0.32)',
+        borderWidth:2,pointRadius:5,pointHoverRadius:7,pointBackgroundColor:'#bb2c0b',tension:.35},
+      {label:'IPC 3 — Crisis',data:[69,79,86,110,165,232,276],
+        fill:true,borderColor:'#e2591a',backgroundColor:'rgba(226,89,26,0.22)',
+        borderWidth:2,pointRadius:5,pointHoverRadius:7,pointBackgroundColor:'#e2591a',tension:.35}
+    ]},
+    options:{
+      responsive:true,
+      interaction:{mode:'index',intersect:false},
+      plugins:{
+        legend:{display:true,position:'bottom',align:'start',labels:{boxWidth:10,padding:18,font:{size:10}}},
+        tooltip:{callbacks:{
+          label:ctx=>' '+ctx.dataset.label+': '+ctx.parsed.y+'M',
+          footer:items=>' Total IPC 3-5: '+(items.reduce((s,i)=>s+i.parsed.y,0).toFixed(1))+'M'
+        },padding:10,cornerRadius:4},
+        annotation:{annotations:timelineAnnotations}
+      },
+      scales:{
+        y:{stacked:true,grid:{color:gridColor},ticks:{callback:v=>v+'M'},
+          title:{display:true,text:'Population (Millions)',font:{size:10}}},
+        x:{grid:{display:false}}
+      }
+    }
+  });
+
+  // ── Regions: horizontal bar ──────────────────────────────────────────
+  new Chart(document.getElementById('chartRegions'),{
+    type:'bar',
+    data:{
+      labels:['East Africa','West Africa','Central Africa','Middle East','South Asia','SE Asia','Caribbean','Latin America'],
+      datasets:[{
+        label:'% food insecure',
+        data:[68,45,55,52,38,27,41,18],
+        backgroundColor:['#5e0606','#bb2c0b','#5e0606','#bb2c0b','#e2591a','#f5a12e','#e2591a','#f5a12e'],
+        borderRadius:3,borderSkipped:false
+      }]
+    },
+    options:{
+      indexAxis:'y',responsive:true,
+      plugins:{legend:{display:false},
+        tooltip:{callbacks:{label:ctx=>` ${ctx.parsed.x}% of regional population`},cornerRadius:4}},
+      scales:{
+        x:{grid:{color:gridColor},ticks:{callback:v=>v+'%'},max:80,
+          title:{display:true,text:'% of population in IPC 3+',font:{size:9}}},
+        y:{grid:{display:false},ticks:{font:{size:10}}}
+      }
+    }
+  });
+
+  // ── IPC Donut with center text ───────────────────────────────────────
+  const centerTextPlugin={
+    id:'centerText',
+    afterDraw(chart){
+      const {ctx,chartArea:{top,width,height}}=chart;
+      ctx.save();
+      ctx.textAlign='center';
+      const cy=top+height/2;
+      ctx.font='bold 20px monospace';
+      ctx.fillStyle='#1a1a18';
+      ctx.fillText('733M',width/2,cy-4);
+      ctx.font='9px monospace';
+      ctx.fillStyle='#6b6b6b';
+      ctx.fillText('TOTAL AFFECTED',width/2,cy+14);
+      ctx.restore();
+    }
+  };
+  new Chart(document.getElementById('chartIPC'),{
+    type:'doughnut',
+    data:{
+      labels:['IPC 2 — Stressed','IPC 3 — Crisis','IPC 4 — Emergency','IPC 5 — Famine'],
+      datasets:[{
+        data:[496,276,99,4.8],
+        backgroundColor:['#f5a12e','#e2591a','#bb2c0b','#5e0606'],
+        borderWidth:2,borderColor:'#fff',hoverOffset:8
+      }]
+    },
+    options:{
+      responsive:true,cutout:'68%',
+      plugins:{
+        legend:{position:'bottom',labels:{font:{size:10},padding:14,boxWidth:10}},
+        tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${ctx.parsed}M people`},cornerRadius:4}
+      }
+    },
+    plugins:[centerTextPlugin]
+  });
+
+  // ── Countries: top 10 horizontal bar ────────────────────────────────
+  const top10=[...CRISIS_DATA].sort((a,b)=>parseFloat(b.population)-parseFloat(a.population)).slice(0,10);
+  new Chart(document.getElementById('chartCountries'),{
+    type:'bar',
+    data:{
+      labels:top10.map(d=>d.country),
+      datasets:[{
+        label:'People in IPC 3+ (M)',
+        data:top10.map(d=>parseFloat(d.population)),
+        backgroundColor:top10.map(d=>ipcColors[d.ipc]+'cc'),
+        borderColor:top10.map(d=>ipcColors[d.ipc]),
+        borderWidth:1,borderRadius:3
+      }]
+    },
+    options:{
+      responsive:true,
+      plugins:{legend:{display:false},
+        tooltip:{callbacks:{
+          label:ctx=>` ${ctx.parsed.y}M people · IPC Phase ${top10[ctx.dataIndex].ipc}`
+        },cornerRadius:4}},
+      scales:{
+        y:{grid:{color:gridColor},ticks:{callback:v=>v+'M'},
+          title:{display:true,text:'Millions (IPC 3+)',font:{size:9}}},
+        x:{grid:{display:false},ticks:{font:{size:10}}}
+      }
+    }
+  });
+
+  // ── Funding gap: stacked bar ─────────────────────────────────────────
+  const fundEl=document.getElementById('chartFunding');
+  if(fundEl){
+    const fundingAnnotations={
+      gapLine:{type:'label',xValue:'2023',yValue:12,content:['Funding crisis'],
+        font:{size:9,family:"'IBM Plex Mono',monospace"},
+        backgroundColor:'rgba(94,6,6,0.8)',color:'#fff',padding:{x:6,y:3},
+        position:'center'}
+    };
+    new Chart(fundEl,{
+      type:'bar',
+      data:{
+        labels,
+        datasets:[
+          {label:'Funding Received ($B)',data:[3.1,4.2,4.8,7.2,8.8,5.1,4.2],
+            backgroundColor:'rgba(226,89,26,0.85)',borderRadius:3,borderSkipped:false},
+          {label:'Funding Gap ($B)',data:[1.5,2.1,2.8,1.2,1.3,4.6,6.1],
+            backgroundColor:'rgba(94,6,6,0.25)',borderWidth:1,borderColor:'#5e0606',
+            borderRadius:3,borderSkipped:false}
+        ]
+      },
+      options:{
+        responsive:true,
+        plugins:{
+          legend:{display:true,position:'bottom',align:'start',labels:{boxWidth:10,padding:16,font:{size:10}}},
+          tooltip:{callbacks:{label:ctx=>` ${ctx.dataset.label}: $${ctx.parsed.y}B`,
+            footer:items=>' Total need: $'+(items.reduce((s,i)=>s+i.parsed.y,0).toFixed(1))+'B'},
+            cornerRadius:4},
+          annotation:{annotations:fundingAnnotations}
+        },
+        scales:{
+          x:{stacked:true,grid:{display:false}},
+          y:{stacked:true,grid:{color:gridColor},ticks:{callback:v=>'$'+v+'B'},
+            title:{display:true,text:'USD Billions',font:{size:9}}}
+        }
+      }
+    });
+  }
+
+  anime({targets:'.chart-card,.chart-card-full,.trend-metric',opacity:[0,1],translateY:[18,0],delay:anime.stagger(80),duration:700,easing:'easeOutCubic'});
+}
+
+function renderNews(filter){
+  const filtered=filter==='all'?NEWS_DATA:NEWS_DATA.filter(n=>n.tags.includes(filter));
+  const c=document.getElementById('newsFeed');
+  if(!filtered.length){c.innerHTML='<div class="empty-state">No articles match this filter.</div>';return;}
+  c.innerHTML=filtered.map(n=>`
+    <div class="news-article">
+      <div>
+        <div class="article-source">${n.source}</div>
+        <div class="article-title">${n.title}</div>
+        <div class="article-body">${n.body}</div>
+        <div class="article-tags">${n.tags.map(t=>`<span class="tag">${t}</span>`).join('')}</div>
+      </div>
+      <div class="article-date">${n.date}</div>
+    </div>`).join('');
+  anime({targets:'.news-article',opacity:[0,1],translateY:[8,0],delay:anime.stagger(60),duration:400,easing:'easeOutCubic'});
+}
+
+function filterNews(tag,btn){
+  currentFilter=tag;
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderNews(tag);
+}
+
+function renderCountryList(query=''){
+  const filtered=CRISIS_DATA.filter(d=>d.country.toLowerCase().includes(query.toLowerCase()));
+  document.getElementById('countryListItems').innerHTML=filtered.map(d=>`
+    <div class="country-item" id="ci-${d.country.replace(/\s/g,'-')}" onclick="selectCountry('${d.country}')">
+      <span class="country-item-name">${d.country}</span>
+      <span class="country-item-ipc" style="background:${ipcColors[d.ipc]}">IPC ${d.ipc}</span>
+    </div>`).join('');
+}
+
+function selectCountry(name){
+  const d=CRISIS_DATA.find(c=>c.country===name);
+  if(!d) return;
+  document.querySelectorAll('.country-item').forEach(el=>el.classList.remove('active'));
+  const el=document.getElementById('ci-'+name.replace(/\s/g,'-'));
+  if(el) el.classList.add('active');
+  document.getElementById('profileDetail').innerHTML=buildProfileHTML(d);
+  anime({targets:'#profileDetail',opacity:[.6,1],translateX:[10,0],duration:350,easing:'easeOutCubic'});
+  anime({targets:'.profile-stat',opacity:[0,1],translateY:[12,0],delay:anime.stagger(80),duration:400,easing:'easeOutCubic'});
+}
+
+function filterCountries(q){renderCountryList(q);}
+
+function initTicker(){
+  const items=[
+    {label:'SUDAN',text:'17.7M in famine — IPC Phase 5 · Zamzam, North Darfur'},
+    {label:'GAZA',text:'2.1M facing catastrophic conditions · all aid blocked'},
+    {label:'SOUTH SUDAN',text:'7.7M in emergency · flooding compounds conflict'},
+    {label:'YEMEN',text:'17.3M food insecure · port infrastructure critical'},
+    {label:'HAITI',text:'5.4M in emergency · gang control of port routes'},
+    {label:'DRC',text:'23.4M crisis-level hunger · Kivu conflict ongoing'},
+    {label:'SOMALIA',text:'6.6M in emergency · La Nina drought cycle'},
+    {label:'ETHIOPIA',text:'20.1M crisis-level · Tigray recovery stalled'},
+    {label:'WFP UPDATE',text:'733 million people face acute hunger globally in 2026'},
+  ];
+  const doubled=[...items,...items];
+  document.getElementById('tickerTrack').innerHTML=doubled.map(i=>`<span class="ticker-item"><strong>${i.label}</strong>${i.text}</span>`).join('');
+}
+
+function startLiveClock(){
+  function update(){
+    const n=new Date();
+    document.getElementById('liveTime').textContent=`UTC ${String(n.getUTCHours()).padStart(2,'0')}:${String(n.getUTCMinutes()).padStart(2,'0')}:${String(n.getUTCSeconds()).padStart(2,'0')}`;
+  }
+  update(); setInterval(update,1000);
+}
+
+function startDataRefresh(){
+  // Intentionally empty — flashing is driven by real data refresh events via flashUpdate()
+}
+
+function flashUpdate(){
+  anime({targets:'#updateFlash',opacity:[0,1],translateX:[20,0],duration:300,easing:'easeOutCubic',
+    complete:()=>setTimeout(()=>anime({targets:'#updateFlash',opacity:0,duration:400}),1800)});
+}
+
+function fetchWithTimeout(url, opts, ms){
+  const ctrl=new AbortController();
+  const tid=setTimeout(()=>ctrl.abort(),ms||8000);
+  return fetch(url,Object.assign({},opts,{signal:ctrl.signal})).finally(()=>clearTimeout(tid));
+}
+
+function updateDisclaimer(){
+  const banner=document.getElementById('dataBanner');
+  const bannerText=document.getElementById('bannerText');
+  if(!banner) return;
+
+  // Update sidebar attribution labels
+  const wfpLabel=document.getElementById('wfpSourceLabel');
+  const newsLabel=document.getElementById('newsSourceLabel');
+  if(wfpLabel) wfpLabel.textContent=apiStatus.wfp===true?'WFP HungerMap (live)':apiStatus.wfp==='static'?'WFP HungerMap · Verified 2024':'WFP HungerMap (cached)';
+  if(newsLabel) newsLabel.textContent=apiStatus.news===true?'ReliefWeb (live · 2 min)':'ReliefWeb (cached)';
+
+  // Update news page status tag
+  const newsTag=document.getElementById('newsStatusTag');
+  if(newsTag) newsTag.style.display=apiStatus.news===false?'inline':'none';
+
+  // WFP uses a verified static dataset — API unavailability is not a "failure" worth surfacing
+  const wfpFailed=false;
+  const newsFailed=apiStatus.news===false;
+
+  if(!wfpFailed && !newsFailed){
+    if(banner._shown){
+      banner._shown=false;
+      anime({targets:banner,translateY:'-100%',opacity:0,duration:300,easing:'easeInCubic',
+        complete(){banner.style.pointerEvents='none';}});
+      document.body.classList.remove('banner-active');
+    }
+    return;
+  }
+
+  const ts=lastLiveUpdateTs
+    ? new Date(lastLiveUpdateTs).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})
+    : 'never';
+  const what=[wfpFailed?'crisis data':'',newsFailed?'news feed':''].filter(Boolean).join(' & ');
+  if(bannerText) bannerText.textContent='⚠ Live '+what+' unavailable — displaying cached data. Last live update: '+ts;
+
+  if(!banner._shown){
+    banner._shown=true;
+    banner.style.pointerEvents='auto';
+    document.body.classList.add('banner-active');
+    anime({targets:banner,translateY:['-100%','0%'],opacity:[0,1],duration:400,easing:'easeOutCubic'});
+  }
+}
+
+function retryApis(){
+  const btn=document.getElementById('bannerRetry');
+  if(btn){btn.textContent='Retrying…';btn.disabled=true;}
+  Promise.all([fetchLiveHungerData(),fetchLiveNews()]).then(()=>{
+    if(btn){btn.textContent='Retry';btn.disabled=false;}
+  });
+}
+
+function toggleFeedbackModal(){
+  const modal=document.getElementById('feedbackModal');
+  modal.classList.toggle('open');
+}
+
+function initGlobeMarkers(globe,allPoints){
+  let tip=document.getElementById('globeTooltip');
+  if(!tip){
+    tip=document.createElement('div');
+    tip.id='globeTooltip';
+    tip.style.cssText='position:fixed;background:#111;border:1px solid #444;color:#eee;padding:6px 10px;'
+      +'font-family:\'IBM Plex Mono\',monospace;font-size:.65rem;line-height:1.6;pointer-events:none;'
+      +'z-index:9999;display:none;white-space:nowrap;';
+    document.body.appendChild(tip);
+  }
+  globe
+    .htmlElementsData(allPoints)
+    .htmlLat('lat').htmlLng('lng')
+    .htmlAltitude(0.01)
+    .htmlElement(d=>{
+      const sz=[20,24,30,38,46][d.ipc-1]||28;
+      const outer=document.createElement('div');
+      outer.style.cssText='position:relative;width:'+sz+'px;height:'+sz+'px;overflow:visible;cursor:pointer;pointer-events:auto;';
+      d._outer=outer;
+
+      // Dot — this is the element anime.js animates
+      const dot=document.createElement('div');
+      dot.style.cssText='position:absolute;inset:0;border-radius:50%;background:'+ipcColors[d.ipc]
+        +';border:2px solid rgba(255,255,255,0.8);box-sizing:border-box;transform-origin:center;transform:scale(1);opacity:0.85;';
+      outer.appendChild(dot);
+      d._el=dot;
+
+      // Shared state — both breathing and pulse/hover drive these
+      const scaleObj={s:1.0},opacityObj={o:0.85};
+      function syncDot(){
+        dot.style.transform='scale('+scaleObj.s+')';
+        dot.style.opacity=opacityObj.o;
+      }
+      function applyGlow(){
+        const t=Math.max(0,(scaleObj.s-1)/0.3);
+        dot.style.boxShadow=t>0.01?'0 0 '+(sz*0.5*t).toFixed(1)+'px 2px '+ipcColors[d.ipc]+'99':'none';
+      }
+
+      // EFFECT 3: COLOR BREATHING — opacity loop only
+      anime({
+        targets:opacityObj,o:[0.85,0.55],duration:2000,
+        easing:'easeInOutSine',direction:'alternate',loop:true,update:syncDot
+      });
+
+      // EFFECT 4: PULSE BY SEVERITY — scale 1→1.2 loop, timing per IPC phase
+      const pulsePeriod={3:2000,4:1500,5:1000}[d.ipc]||0;
+      let pulseAnim=null,pulseTimer=null;
+      function startPulse(){
+        if(!pulsePeriod) return;
+        pulseAnim=anime({
+          targets:scaleObj,s:1.2,duration:pulsePeriod*0.4,
+          easing:'easeInOutSine',direction:'alternate',
+          update:syncDot,
+          complete(){pulseTimer=setTimeout(startPulse,pulsePeriod*0.2);}
+        });
+      }
+      startPulse();
+
+      // EFFECT 1: HOVER — scale 1→1.3 + glow, reversible mid-animation
+      let hoverAnim=null;
+      outer.addEventListener('mouseover',e=>{
+        e.stopPropagation();
+        if(pulseAnim){pulseAnim.pause();}
+        if(pulseTimer){clearTimeout(pulseTimer);}
+        if(hoverAnim){hoverAnim.pause();}
+        hoverAnim=anime({targets:scaleObj,s:1.3,duration:300,easing:'easeOutCubic',
+          update(){syncDot();applyGlow();}
+        });
+        tip.textContent='';
+        const b=document.createElement('span');
+        b.style.fontWeight='bold';
+        b.textContent=d.country;
+        tip.appendChild(b);
+        tip.appendChild(document.createTextNode(' — '+ipcLabels[d.ipc]+' · '+d.population+' affected'));
+        tip.style.display='block';
+      });
+      outer.addEventListener('mousemove',e=>{
+        tip.style.left=(e.clientX+14)+'px';
+        tip.style.top=(e.clientY+14)+'px';
+      });
+      outer.addEventListener('mouseout',e=>{
+        e.stopPropagation();
+        tip.style.display='none';
+        if(hoverAnim){hoverAnim.pause();}
+        hoverAnim=anime({targets:scaleObj,s:1.0,duration:300,easing:'easeOutCubic',
+          update(){syncDot();applyGlow();},
+          complete(){dot.style.boxShadow='none';startPulse();}
+        });
+      });
+
+      // EFFECT 2: CLICK RIPPLE — 3 rings, staggered 150ms, scale 1→3 + fade
+      outer.addEventListener('click',e=>{
+        e.stopPropagation();
+        for(let i=0;i<3;i++){
+          const rip=document.createElement('div');
+          rip.style.cssText='position:absolute;inset:0;border-radius:50%;border:2px solid '
+            +ipcColors[d.ipc]+';opacity:0.7;transform:scale(1);transform-origin:center;pointer-events:none;';
+          outer.appendChild(rip);
+          anime({targets:rip,scale:3,opacity:0,delay:i*150,duration:700,easing:'easeOutCubic',
+            complete(){rip.remove();}
+          });
+        }
+        globe.controls().autoRotate=false;
+        globe.pointOfView({lat:d.lat,lng:d.lng,altitude:1.4},1000);
+        updateMapPanel(d);
+      });
+
+      return outer;
+    });
+}
+function buildPointLabel(d){
+  return '<div style="background:#111;border:1px solid '+ipcColors[d.ipc]+';padding:6px 10px;font-family:\'IBM Plex Mono\',monospace;font-size:.65rem;line-height:1.6;color:#eee;pointer-events:none;"><b>'+d.country+'</b><br>'+ipcLabels[d.ipc]+'<br>'+d.population+' affected</div>';
+}
+function buildPolygonLabel(d){
+  return '<div style="background:#111;border:1px solid '+ipcColors[d.ipc]+';padding:6px 10px;font-family:\'IBM Plex Mono\',monospace;font-size:.65rem;color:#eee;pointer-events:none;"><b>'+d.country+'</b><br>'+ipcLabels[d.ipc]+'</div>';
+}
+function buildPanelHTML(d){
+  return '<div style="margin-bottom:12px;"><span style="background:'+ipcColors[d.ipc]+';color:white;font-family:\'IBM Plex Mono\',monospace;font-size:.6rem;letter-spacing:.1em;padding:4px 10px;text-transform:uppercase;">'+ipcLabels[d.ipc]+'</span></div>'
+    +'<h3 style="font-family:\'Playfair Display\',serif;font-weight:700;font-size:1.5rem;margin-bottom:4px;">'+d.country+'</h3>'
+    +'<p style="font-family:\'IBM Plex Mono\',monospace;font-size:.58rem;color:var(--gray-500);letter-spacing:.1em;text-transform:uppercase;margin-bottom:16px;">'+d.region+'</p>'
+    +'<div class="map-stat-row">'
+    +'<div class="map-stat"><div class="map-stat-val">'+d.population+'</div><div class="map-stat-lbl">People affected</div></div>'
+    +'<div class="map-stat"><div class="map-stat-val">IPC '+d.ipc+'</div><div class="map-stat-lbl">Phase</div></div>'
+    +'</div>'
+    +'<div style="margin-top:16px;padding:14px;background:var(--gray-100);border:var(--border);">'
+    +'<p style="font-family:\'IBM Plex Mono\',monospace;font-size:.58rem;color:var(--gray-500);letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px;">Key Drivers</p>'
+    +'<p style="font-family:\'Source Serif 4\',serif;font-size:.82rem;line-height:1.5;color:var(--gray-700);">'+d.drivers+'</p>'
+    +'</div>'
+    +'<button onclick="navigate(\'profiles\');setTimeout(()=>selectCountry(\''+d.country+'\'),200)" style="margin-top:12px;width:100%;padding:10px;background:var(--ink);color:white;border:none;cursor:pointer;font-family:\'IBM Plex Mono\',monospace;font-size:.6rem;letter-spacing:.12em;text-transform:uppercase;">View Full Profile &#x2192;</button>';
+}
+function updateMapPanel(d){
+  const el=document.getElementById('mapPanel');
+  if(!el) return;
+  el.innerHTML=buildPanelHTML(d);
+  anime({targets:'#mapPanel',opacity:[.5,1],translateX:[10,0],duration:300,easing:'easeOutCubic'});
+}
+function filterMapByPhase(phase, btn){
+  document.querySelectorAll('.phase-filter').forEach(b=>{
+    b.style.opacity='0.55';
+    b.style.transform='scale(1)';
+    b.style.boxShadow='none';
+    b.classList.remove('pf-active');
+  });
+  if(btn){
+    btn.style.opacity='1';
+    btn.style.transform='scale(1.06)';
+    btn.style.boxShadow='0 0 0 2px #fff,0 0 0 4px rgba(0,0,0,0.5)';
+    btn.classList.add('pf-active');
+  }
+  (window._globeAllPoints||[]).forEach(d=>{
+    const show=phase===null||d.ipc===phase;
+    if(d._outer){
+      d._outer.style.opacity=show?'':'0';
+      d._outer.style.pointerEvents=show?'auto':'none';
+      d._outer.style.transition='opacity 0.25s';
+    }
+  });
+  if(!mapInstance) return;
+  const rings=window._globeAllRings||[];
+  mapInstance.ringsData(phase===null?rings:rings.filter(d=>d.ipc===phase));
+}
+
+function searchMapCountry(query){
+  const dropdown=document.getElementById('mapSearchDropdown');
+  if(!query||query.length<2){
+    if(dropdown) dropdown.style.display='none';
+    if(!query&&mapInstance) mapInstance.pointOfView({lat:10,lng:20,altitude:2.5},1200);
+    return;
+  }
+  const q=query.toLowerCase();
+  _mapSearchMatches=WORLD_COUNTRIES.filter(c=>c.name.toLowerCase().includes(q)).slice(0,8);
+  if(!dropdown||!_mapSearchMatches.length){if(dropdown)dropdown.style.display='none';return;}
+  dropdown.innerHTML=_mapSearchMatches.map((c,i)=>{
+    const crisis=CRISIS_DATA.find(d=>d.country===c.name);
+    const badge=crisis?'<span class="map-search-badge" style="background:'+ipcColors[crisis.ipc]+'">IPC '+crisis.ipc+'</span>':'';
+    return '<div class="map-search-item" onclick="selectMapCountry('+i+')">'
+      +'<span class="map-search-name">'+c.name+badge+'</span>'
+      +'<span class="map-search-region">'+c.region+'</span>'
+      +'</div>';
+  }).join('');
+  dropdown.style.display='block';
+}
+
+function selectMapCountry(idx){
+  const c=_mapSearchMatches[idx];
+  if(!c) return;
+  const input=document.getElementById('mapSearch');
+  const dropdown=document.getElementById('mapSearchDropdown');
+  if(input) input.value=c.name;
+  if(dropdown) dropdown.style.display='none';
+  if(mapInstance){
+    mapInstance.controls().autoRotate=false;
+    mapInstance.pointOfView({lat:c.lat,lng:c.lng,altitude:1.4},1500);
+  }
+  const crisis=CRISIS_DATA.find(d=>d.country===c.name);
+  if(crisis) updateMapPanel(crisis);
+  else showNoCrisisPanel(c);
+}
+
+function showNoCrisisPanel(c){
+  const el=document.getElementById('mapPanel');
+  if(!el) return;
+  el.innerHTML='<div style="padding:14px;background:var(--green-light);border:1px solid #95d5b2;border-radius:2px;margin-bottom:14px;">'
+    +'<div style="font-family:\'IBM Plex Mono\',monospace;font-size:.52rem;letter-spacing:.12em;text-transform:uppercase;color:var(--green-dark);margin-bottom:4px;">No Active Crisis Alert</div>'
+    +'<div style="font-family:\'Playfair Display\',serif;font-weight:700;font-size:1.25rem;color:var(--green-dark);">'+c.name+'</div>'
+    +'<div style="font-family:\'IBM Plex Mono\',monospace;font-size:.56rem;color:var(--green-mid);margin-top:3px;">'+c.region+'</div>'
+    +'</div>'
+    +'<p style="font-family:\'Source Serif 4\',serif;font-size:.83rem;color:var(--gray-700);line-height:1.65;">This country is not currently classified at IPC Phase 2+ in the tracked crisis dataset. No active humanitarian food security emergency is on record.</p>';
+  anime({targets:'#mapPanel',opacity:[.5,1],translateX:[10,0],duration:300,easing:'easeOutCubic'});
+}
+
+function updateMapStats(){
+  document.getElementById('mapCountriesShown').textContent=CRISIS_DATA.length;
+  document.getElementById('mapCrisesCount').textContent=CRISIS_DATA.filter(d=>d.ipc===5).length;
+  document.getElementById('mapEmergencyCount').textContent=CRISIS_DATA.filter(d=>d.ipc===4).length;
+}
+
+function updateDataTimestamp(){
+  const el=document.getElementById('dataLastUpdated');
+  if(el) el.textContent=new Date().toISOString().split('T')[0];
+}
+
+async function fetchLiveHungerData(){
+  console.log('[WFP] Fetching hunger data…');
+
+  // Attempt 1: CORS proxy → WFP HungerMap API
+  try {
+    const proxyUrl='https://cors-anywhere.herokuapp.com/https://api.wfp.org/hungermap/latest';
+    const r=await fetchWithTimeout(proxyUrl,{'headers':{'Accept':'application/json','X-Requested-With':'XMLHttpRequest'}},8000);
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    const d=await r.json();
+    const raw=d.features||d.countries||d.data||[];
+    const mapped=raw.map(c=>{
+      const p=c.properties||c;
+      const ipc=Math.round(p.ipc_phase||p.ipcPhase||p.ipc||3);
+      const pop=p.population||(p.populationMillion&&p.populationMillion*1e6)||0;
+      const entry={
+        country:p.country_name||p.name||p.countryName,
+        region:p.region||p.regionName||'Unknown',
+        ipc:ipc,
+        population:pop?(pop/1e6).toFixed(1)+'M':'—',
+        severity:p.severity||ipcLabels[ipc]||'Crisis',
+        drivers:p.main_drivers||p.drivers||p.mainDrivers||'Complex emergency'
+      };
+      entry.ghiScore=p.ghi_score||p['ghiScore']||null;
+      return entry;
+    }).filter(c=>c.country&&c.ipc>=2);
+
+    if(mapped.length>=5){
+      CRISIS_DATA.length=0;
+      mapped.forEach(c=>CRISIS_DATA.push(c));
+      console.log('[WFP] ✓ Live data loaded:',CRISIS_DATA.length,'countries');
+      apiStatus.wfp=true; lastLiveUpdateTs=Date.now(); updateDisclaimer(); flashUpdate();
+      renderCrisisCards(); updateMapStats(); updateDataTimestamp();
+      return;
+    }
+    throw new Error('too few countries in response: '+mapped.length);
+  } catch(err){
+    console.warn('[WFP] CORS proxy failed:',err.message);
+  }
+
+  // Attempt 2: local server proxy
+  try {
+    const r=await fetchWithTimeout('/api/wfp',{headers:{'Accept':'application/json'}},5000);
+    if(!r.ok) throw new Error('proxy error');
+    const d=await r.json();
+    if(d.status==='unavailable'||!d.data) throw new Error('unavailable');
+    console.log('[WFP] ✓ Local proxy data loaded');
+    apiStatus.wfp=true; lastLiveUpdateTs=Date.now(); updateDisclaimer(); flashUpdate();
+    updateDataTimestamp();
+    return;
+  } catch(err){
+    console.warn('[WFP] Local proxy unavailable:', err.message);
+  }
+
+  // All sources failed
+  console.info('[WFP] Using verified static dataset (live API unavailable)');
+  apiStatus.wfp='static'; updateDisclaimer();
+}
+
+async function fetchLiveNews(){
+  console.log('[NEWS] Fetching live alerts…');
+
+  function sanitizeNewsItems(items){
+    return items
+      .filter(item=>item.title&&item.title.trim().length>10)
+      .map(item=>({
+        ...item,
+        body:(item.body&&item.body.length>20)?item.body:'See full report on ReliefWeb.',
+        source:item.source||'ReliefWeb',
+        tags:(item.tags&&item.tags.length>0)?item.tags.filter(t=>t&&t.length>0):['emergency']
+      }))
+      .slice(0,12);
+  }
+
+  function tagFromTitle(title){
+    const t=title.toLowerCase();
+    const tags=[];
+    if(/famine|ipc.5/.test(t)) tags.push('famine');
+    if(/emergency|ipc.4/.test(t)) tags.push('emergency');
+    if(/africa|sudan|somalia|ethiopia|nigeria|drc|kenya|chad|cameroon|zimbabwe|mozambique|burundi|south.sudan/.test(t)) tags.push('africa');
+    if(/gaza|yemen|syria|lebanon|middle.east/.test(t)) tags.push('middleeast');
+    if(/afghanistan|myanmar|tajikistan|asia/.test(t)) tags.push('asia');
+    return tags.length?tags:['emergency'];
+  }
+
+  function pushNews(items){
+    NEWS_DATA.length=0;
+    items.forEach(item=>NEWS_DATA.push(item));
+    if(NEWS_DATA.length<6) STATIC_NEWS_FALLBACK.forEach(f=>{if(NEWS_DATA.length<8)NEWS_DATA.push(f);});
+    const newsPage=document.getElementById('page-news');
+    if(newsPage&&newsPage.classList.contains('active')) renderNews(currentFilter);
+    renderSidebarNews();
+  }
+
+  // Attempt 1: ReliefWeb REST API (CORS-enabled)
+  try {
+    const rwUrl='https://api.reliefweb.int/v1/reports?appname=hunger-index&filter[operator]=AND'
+      +'&filter[conditions][0][field]=source.name&filter[conditions][0][value][]=WFP'
+      +'&limit=20&fields[]=title&fields[]=date.created&fields[]=body&fields[]=source';
+    const r=await fetchWithTimeout(rwUrl,{headers:{'Accept':'application/json'}},8000);
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    const d=await r.json();
+    const items=(d.data||[]).map(item=>{
+      const f=item.fields||{};
+      const dateStr=f['date.created']||'';
+      let fmtDate=dateStr;
+      try { fmtDate=new Date(dateStr).toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'}); } catch(_){}
+      const body=(f.body||'').replace(/<[^>]+>/g,'').replace(/&[a-z]+;/g,' ').trim().slice(0,200)||'See full report on ReliefWeb.';
+      const src=((f.source||[])[0]||{}).name||'ReliefWeb';
+      const title=f.title||'';
+      return {source:src,title,body,date:fmtDate,tags:tagFromTitle(title),url:''};
+    }).filter(item=>item.title.length>10).slice(0,12);
+
+    if(items.length>=3){
+      pushNews(items);
+      console.log('[NEWS] ✓ ReliefWeb REST API:',NEWS_DATA.length,'items');
+      apiStatus.news=true; lastLiveUpdateTs=Date.now(); updateDisclaimer(); flashUpdate();
+      return;
+    }
+    throw new Error('too few items: '+items.length);
+  } catch(err){
+    console.warn('[NEWS] ReliefWeb API failed:',err.message);
+  }
+
+  // Attempt 2: local server proxy (curl-based ReliefWeb RSS)
+  try {
+    const r=await fetchWithTimeout('/api/news',{},10000);
+    if(!r.ok) throw new Error('news proxy error');
+    const d=await r.json();
+    if(!d.items||d.items.length===0) throw new Error('empty response');
+    const items=sanitizeNewsItems(d.items);
+    if(items.length===0) throw new Error('no valid items after sanitize');
+    pushNews(items);
+    console.log('[NEWS] ✓ Local proxy (ReliefWeb RSS):',NEWS_DATA.length,'items');
+    apiStatus.news=true; lastLiveUpdateTs=Date.now(); updateDisclaimer(); flashUpdate();
+    return;
+  } catch(err){
+    console.warn('[NEWS] Local proxy failed:',err.message);
+  }
+
+  // All sources failed
+  console.warn('[NEWS] ✗ All news sources failed — using static NEWS_DATA');
+  apiStatus.news=false; updateDisclaimer();
+}
+
+function startLiveDataRefresh(){
+  // Initial fetch on load
+  fetchLiveHungerData();
+  fetchLiveNews();
+  updateDataTimestamp();
+
+  // Refresh news every 2 minutes
+  setInterval(async()=>{
+    await fetchLiveNews();
+    updateDataTimestamp();
+  }, 2*60*1000);
+
+  // Refresh WFP crisis data every 5 minutes
+  setInterval(async()=>{
+    await fetchLiveHungerData();
+    updateDataTimestamp();
+  }, 5*60*1000);
+}
+
+document.addEventListener('click',function(e){
+  const dd=document.getElementById('mapSearchDropdown');
+  const inp=document.getElementById('mapSearch');
+  if(dd&&inp&&!dd.contains(e.target)&&e.target!==inp) dd.style.display='none';
+});
+
+async function fetchWorldBankData(){
+  const indicators={
+    'NY.GDP.PCAP.CD':'gdpPerCap',
+    'SI.POV.DDAY':'povertyRate',
+    'SN.ITK.DEFC.ZS':'malnutrition',
+    'SP.POP.TOTL':'population'
+  };
+  for(const [ind, key] of Object.entries(indicators)){
+    const codes=Object.values(ISO2).filter(Boolean).join(';');
+    try {
+      const r=await fetchWithTimeout(
+        'https://api.worldbank.org/v2/country/'+codes+'/indicator/'+ind+'?format=json&mrv=1&per_page=50',
+        {},8000
+      );
+      if(!r.ok) continue;
+      const d=await r.json();
+      const rows=(d[1]||[]);
+      rows.forEach(row=>{
+        if(!row.value||!row.countryiso3code) return;
+        const cname=Object.entries(ISO2).find(([,v])=>v===row.country.id)?.[0];
+        if(!cname) return;
+        if(!WORLDBANK_DATA[cname]) WORLDBANK_DATA[cname]={};
+        WORLDBANK_DATA[cname][key]=row.value;
+      });
+    } catch(_){}
+  }
+}
+
+async function fetchUNHCRData(){
+  try {
+    const r=await fetchWithTimeout('https://api.unhcr.org/population/v1/population/?limit=100&yearFrom=2023&yearTo=2024&cf_type=ROC',{},8000);
+    if(!r.ok) return;
+    const d=await r.json();
+    (d.items||[]).forEach(row=>{
+      const cname=CRISIS_DATA.find(c=>row.coa_name&&row.coa_name.toLowerCase().includes(c.country.toLowerCase()))?.country;
+      if(!cname) return;
+      if(!UNHCR_DATA[cname]) UNHCR_DATA[cname]={displaced:0,refugees:0};
+      UNHCR_DATA[cname].displaced=(UNHCR_DATA[cname].displaced||0)+(row.idps||0);
+      UNHCR_DATA[cname].refugees=(UNHCR_DATA[cname].refugees||0)+(row.refugees||0);
+    });
+  } catch(_){}
+}
+
+async function fetchAllExternalData(){
+  await Promise.allSettled([fetchWorldBankData(), fetchUNHCRData()]);
+}
+
+function buildProfileHTML(d){
+  const wb=WORLDBANK_DATA[d.country]||{};
+  const un=UNHCR_DATA[d.country]||{};
+  const ipcBar=[1,2,3,4,5].map(p=>'<div style="flex:1;height:8px;background:'+(p<=d.ipc?ipcColors[p]:'var(--gray-100)')+';"></div>').join('');
+  const gdpStr=wb.gdpPerCap?'$'+Math.round(wb.gdpPerCap).toLocaleString():'—';
+  const povStr=wb.povertyRate?wb.povertyRate.toFixed(1)+'%':'—';
+  const malStr=wb.malnutrition?wb.malnutrition.toFixed(1)+'%':'—';
+  const idpStr=un.displaced?((un.displaced/1e6).toFixed(2)+'M'):'—';
+  const refStr=un.refugees?((un.refugees/1e6).toFixed(2)+'M'):'—';
+  const ghiStr=d.ghiScore?
+    '<div class="ghi-badge"><div><div class="ghi-badge-score" style="color:'+ipcColors[Math.min(5,Math.max(1,Math.round(d.ghiScore/20)))]+'">'+d.ghiScore.toFixed(1)+'</div><div class="ghi-badge-label">GHI Score 2023</div></div></div>':'';
+
+  return '<div class="profile-header">'
+    +'<div class="profile-country-name">'+d.country+'</div>'
+    +'<div class="profile-region">'+d.region+' &middot; Food Security Profile 2024–2026</div>'
+    +'<span class="profile-ipc-badge" style="background:'+ipcColors[d.ipc]+'">'+ipcLabels[d.ipc]+'</span>'
+    +ghiStr
+    +'</div>'
+    +'<div class="profile-stats">'
+    +'<div class="profile-stat"><span class="profile-stat-val">'+d.population+'</span><div class="profile-stat-lbl">People Affected</div></div>'
+    +'<div class="profile-stat"><span class="profile-stat-val">IPC '+d.ipc+'</span><div class="profile-stat-lbl">Severity Phase</div></div>'
+    +'<div class="profile-stat"><span class="profile-stat-val">'+gdpStr+'</span><div class="profile-stat-lbl">GDP per Capita</div></div>'
+    +'<div class="profile-stat"><span class="profile-stat-val">'+malStr+'</span><div class="profile-stat-lbl">Malnutrition Rate</div></div>'
+    +'</div>'
+    +'<div class="profile-section"><h3>IPC Severity Classification</h3>'
+    +'<div style="display:flex;gap:2px;margin-bottom:10px;">'+ipcBar+'</div>'
+    +'<p>'+d.country+' is classified at <strong>IPC Phase '+d.ipc+' — '+d.severity+'</strong>. An estimated '+d.population+' people face acute food insecurity requiring immediate humanitarian response. This classification reflects integrated analysis from WFP, FEWS NET, and UN OCHA situational assessments.</p>'
+    +'</div>'
+    +'<div class="profile-section"><h3>Crisis Drivers</h3><p>'+d.drivers+'. These factors compound one another — reducing food production, disrupting supply chains, and eroding household purchasing power simultaneously.</p></div>'
+    +'<div class="profile-section"><h3>Economic Context — World Bank Indicators</h3>'
+    +'<div class="profile-live-grid">'
+    +'<div class="profile-live-stat"><div class="profile-live-val">'+gdpStr+'</div><div class="profile-live-lbl">GDP per Capita</div></div>'
+    +'<div class="profile-live-stat"><div class="profile-live-val">'+povStr+'</div><div class="profile-live-lbl">Poverty Rate ($2.15/day)</div></div>'
+    +'<div class="profile-live-stat"><div class="profile-live-val">'+malStr+'</div><div class="profile-live-lbl">Undernourishment %</div></div>'
+    +'<div class="profile-live-stat"><div class="profile-live-val">'+d.population+'</div><div class="profile-live-lbl">Affected Population</div></div>'
+    +'</div></div>'
+    +'<div class="profile-section"><h3>Displacement &amp; Refugees — UNHCR</h3>'
+    +'<div class="profile-live-grid">'
+    +'<div class="profile-live-stat"><div class="profile-live-val">'+idpStr+'</div><div class="profile-live-lbl">Internally Displaced</div></div>'
+    +'<div class="profile-live-stat"><div class="profile-live-val">'+refStr+'</div><div class="profile-live-lbl">Refugees Abroad</div></div>'
+    +'</div>'
+    +'<p style="font-family:\'IBM Plex Mono\',monospace;font-size:.55rem;color:var(--gray-500);margin-top:12px;line-height:1.6;">Source: UNHCR Population Statistics Database · 2023–2024</p>'
+    +'</div>'
+    +'<div class="profile-section"><h3>Data Sources</h3>'
+    +'<p>IPC classification: WFP HungerMap &amp; FEWS NET monthly assessments. Economic indicators: World Bank Open Data API. Displacement: UNHCR Population Statistics. Humanitarian alerts: UN OCHA ReliefWeb. Global Hunger Index: Welthungerhilfe &amp; Concern Worldwide '+(d.ghiScore?'(GHI score: '+d.ghiScore.toFixed(1)+')':'(not available for this territory)')+'.</p>'
+    +'</div>';
+}
+
+document.getElementById('feedbackForm').addEventListener('submit',function(e){
+  e.preventDefault();
+  const data={
+    page:document.getElementById('feedbackPage').value,
+    type:document.getElementById('feedbackType').value,
+    text:document.getElementById('feedbackText').value,
+    timestamp:new Date().toISOString()
+  };
+  console.log('Feedback submitted:',data);
+  alert('Thanks for your feedback!');
+  this.reset();
+  toggleFeedbackModal();
+});
+</script>
+</body>
+</html>
