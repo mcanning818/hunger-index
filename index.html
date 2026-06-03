@@ -326,10 +326,10 @@ nav{position:fixed;top:0;left:0;right:0;z-index:1000;background:var(--white);bor
     </h1>
     <p class="hero-sub" id="heroSub">Real-time tracking of food insecurity crises worldwide, drawing on WFP HungerMap, UN OCHA ReliefWeb, and FEWS NET classification data.</p>
     <div class="stat-row">
-      <div class="stat-block" id="sb1"><span class="stat-num"><span id="stat1">0</span><span class="unit">M</span></span><div class="stat-label">In Emergency<br>(IPC Phase 4)</div></div>
+      <div class="stat-block" id="sb1"><span class="stat-num"><span id="stat1">0</span><span id="stat1-unit" class="unit">M</span></span><div class="stat-label">In Emergency<br>(IPC Phase 4)</div></div>
       <div class="stat-block" id="sb2"><span class="stat-num"><span id="stat2">0</span></span><div class="stat-label">Active Crisis<br>Zones</div></div>
-      <div class="stat-block" id="sb3"><span class="stat-num"><span id="stat3">0</span><span class="unit">M</span></span><div class="stat-label">Facing Famine<br>(IPC Phase 5)</div></div>
-      <div class="stat-block" id="sb4"><span class="stat-num"><span id="stat4">0</span><span class="unit">B</span></span><div class="stat-label">Food Insecure<br>Globally</div></div>
+      <div class="stat-block" id="sb3"><span class="stat-num"><span id="stat3">0</span><span id="stat3-unit" class="unit">M</span></span><div class="stat-label">Facing Famine<br>(IPC Phase 5)</div></div>
+      <div class="stat-block" id="sb4"><span class="stat-num"><span id="stat4">0</span><span id="stat4-unit" class="unit">B</span></span><div class="stat-label">Food Insecure<br>Globally</div></div>
     </div>
     <div id="overviewDataBadge" style="display:none;margin-top:20px;font-family:'IBM Plex Mono',monospace;font-size:.52rem;letter-spacing:.1em;color:var(--gray-300);text-transform:uppercase;">&#x25CF; Live data &middot; HDX HAPI &middot; IPC classifications &middot; Updated on load</div>
   </div>
@@ -419,65 +419,67 @@ nav{position:fixed;top:0;left:0;right:0;z-index:1000;background:var(--white);bor
 <div id="page-trends" class="page">
   <div class="trends-layout">
     <h1 class="page-title">Trends & Analysis</h1>
-    <div class="page-subtitle">Historical data · WFP / FAO / FEWS NET · Global Hunger Index · 2018–2024</div>
+    <div class="page-subtitle">Live HDX HAPI data · WFP / FAO / FEWS NET · Global Hunger Index · 2018–2026</div>
 
-    <!-- Key metric tiles -->
-    <div class="trends-metrics">
-      <div class="trend-metric">
-        <div class="trend-metric-num">733M</div>
-        <div class="trend-metric-label">In Acute Hunger</div>
-        <div class="trend-metric-sub">↑ 12% vs 2022 · FAO 2024</div>
-      </div>
-      <div class="trend-metric">
-        <div class="trend-metric-num">58</div>
-        <div class="trend-metric-label">Crisis Countries</div>
-        <div class="trend-metric-sub">IPC Phase 3+ · WFP</div>
-      </div>
-      <div class="trend-metric">
-        <div class="trend-metric-num">$6.1B</div>
-        <div class="trend-metric-label">Funding Gap</div>
-        <div class="trend-metric-sub">WFP 2024 shortfall</div>
-      </div>
-      <div class="trend-metric">
-        <div class="trend-metric-num">117M</div>
-        <div class="trend-metric-label">Displaced Persons</div>
-        <div class="trend-metric-sub">UNHCR 2024 record</div>
+    <!-- Country selector + compare -->
+    <div style="background:var(--white);border:var(--border);padding:20px;margin-bottom:32px;">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:.55rem;letter-spacing:.15em;text-transform:uppercase;color:var(--gray-500);margin-bottom:10px;">Country Focus</div>
+      <div id="countryChips" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;"></div>
+      <div style="display:flex;align-items:center;gap:12px;">
+        <button id="compareModeBtn" onclick="toggleCompareMode()" style="font-family:'IBM Plex Mono',monospace;font-size:.55rem;letter-spacing:.1em;text-transform:uppercase;padding:6px 14px;background:none;border:1px solid var(--gray-300);color:var(--gray-500);cursor:pointer;border-radius:2px;transition:all .2s;">&#x2295; Compare Countries</button>
+        <div id="compareModeHint" style="display:none;font-family:'IBM Plex Mono',monospace;font-size:.55rem;color:var(--blue-mid);">Select up to 4 countries &middot; Click chips to toggle</div>
       </div>
     </div>
 
-    <div class="chart-card-full">
-      <div class="chart-title">Global Population in Acute Food Insecurity — by IPC Phase</div>
-      <div class="chart-meta">Millions of people · 2018–2024 · Source: WFP / FAO / FEWS NET — stacked by severity</div>
-      <canvas id="chartTimeline" height="100"></canvas>
-      <div class="chart-insight">COVID-19 (2020) triggered the sharpest single-year spike since modern IPC monitoring began. The 2022 Ukraine war disrupted global grain exports, pushing an additional 70M people into crisis. WFP projects the 2024 total to reach 380M+ across IPC phases 3–5.</div>
+    <!-- Chart 1: Conflict-Hunger Correlation (hero) -->
+    <div class="chart-panel" style="margin-bottom:32px;padding:24px;background:var(--white);border:var(--border);border-top:3px solid var(--ipc4);">
+      <div style="font-family:'Playfair Display',serif;font-weight:700;font-size:1.3rem;margin-bottom:4px;">Conflict Events vs. Food Insecurity</div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:.55rem;letter-spacing:.1em;text-transform:uppercase;color:var(--gray-500);margin-bottom:8px;">ACLED CONFLICT EVENTS (VIA HDX HAPI) &middot; IPC PHASE 3+ POPULATION</div>
+      <div style="font-family:'Source Serif 4',serif;font-size:.85rem;line-height:1.65;color:var(--gray-600);margin-bottom:16px;max-width:680px;">Research shows a 90&ndash;180 day lag between armed conflict escalation and measurable food insecurity increases. The shaded annotation highlights this relationship.</div>
+      <div style="position:relative;height:300px;"><canvas id="correlationChart"></canvas></div>
     </div>
 
-    <div class="charts-grid">
-      <div class="chart-card">
-        <div class="chart-title">Worst Affected Regions</div>
-        <div class="chart-meta">% of regional population in IPC 3+ · 2024</div>
-        <canvas id="chartRegions" height="200"></canvas>
+    <!-- Chart 2: IPC Phase Trend -->
+    <div class="chart-panel" style="margin-bottom:32px;padding:24px;background:var(--white);border:var(--border);">
+      <div style="font-family:'Playfair Display',serif;font-weight:700;font-size:1.3rem;margin-bottom:4px;">IPC Phase Population Over Time</div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:.55rem;letter-spacing:.1em;text-transform:uppercase;color:var(--gray-500);margin-bottom:16px;">PEOPLE IN CRISIS, EMERGENCY &amp; CATASTROPHE &middot; HDX HAPI &middot; MILLIONS</div>
+      <div style="position:relative;height:280px;"><canvas id="ipcTrendChart"></canvas></div>
+    </div>
+
+    <!-- Charts 3 + 4: Two column -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:32px;">
+      <div class="chart-panel" style="padding:24px;background:var(--white);border:var(--border);">
+        <div style="font-family:'Playfair Display',serif;font-weight:700;font-size:1.1rem;margin-bottom:4px;">Food Price Trends</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:.52rem;letter-spacing:.1em;text-transform:uppercase;color:var(--gray-500);margin-bottom:14px;">STAPLE COMMODITIES &middot; WFP VIA HDX HAPI</div>
+        <div style="position:relative;height:240px;"><canvas id="foodPriceChart"></canvas></div>
       </div>
-      <div class="chart-card">
-        <div class="chart-title">IPC Phase Distribution</div>
-        <div class="chart-meta">Global caseload by severity · 733M total · 2024</div>
-        <canvas id="chartIPC" height="200"></canvas>
+      <div class="chart-panel" style="padding:24px;background:var(--white);border:var(--border);">
+        <div style="font-family:'Playfair Display',serif;font-weight:700;font-size:1.1rem;margin-bottom:4px;">Displacement Over Time</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:.52rem;letter-spacing:.1em;text-transform:uppercase;color:var(--gray-500);margin-bottom:14px;">INTERNALLY DISPLACED PERSONS &middot; IOM DTM VIA HDX HAPI</div>
+        <div style="position:relative;height:240px;"><canvas id="displacementChart"></canvas></div>
       </div>
     </div>
 
-    <div class="charts-grid">
-      <div class="chart-card-full" style="margin-bottom:0;">
-        <div class="chart-title">Top 10 Countries by Food Insecure Population</div>
-        <div class="chart-meta">Millions in IPC Phase 3+ · color = IPC severity · Source: WFP 2024</div>
-        <canvas id="chartCountries" height="90"></canvas>
+    <!-- Charts 5 + 6: Two column, static -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:32px;">
+      <div class="chart-panel" style="padding:24px;background:var(--white);border:var(--border);">
+        <div style="font-family:'Playfair Display',serif;font-weight:700;font-size:1.1rem;margin-bottom:4px;">Global Hunger Index Rankings</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:.52rem;letter-spacing:.1em;text-transform:uppercase;color:var(--gray-500);margin-bottom:14px;">GHI 2023 &middot; ALL TRACKED COUNTRIES &middot; WELTHUNGERHILFE</div>
+        <div style="position:relative;height:440px;"><canvas id="ghiChart"></canvas></div>
+      </div>
+      <div class="chart-panel" style="padding:24px;background:var(--white);border:var(--border);">
+        <div style="font-family:'Playfair Display',serif;font-weight:700;font-size:1.1rem;margin-bottom:4px;">Crisis Severity by Region</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:.52rem;letter-spacing:.1em;text-transform:uppercase;color:var(--gray-500);margin-bottom:14px;">IPC PHASE DISTRIBUTION &middot; COUNTRIES BY REGION</div>
+        <div style="position:relative;height:240px;"><canvas id="regionalChart"></canvas></div>
       </div>
     </div>
 
+    <!-- Funding chart (preserved) -->
     <div class="chart-card-full" style="border-top-color:#5e0606;">
       <div class="chart-title">Humanitarian Funding: Need vs. Delivery</div>
-      <div class="chart-meta">WFP annual funding requirements vs. received · billions USD · 2018–2024</div>
+      <div class="chart-meta">WFP annual funding requirements vs. received &middot; billions USD &middot; 2018&ndash;2024</div>
       <canvas id="chartFunding" height="80"></canvas>
-      <div class="chart-insight">The 2023–2024 funding crisis is the most severe in WFP's history — only 41 cents of every dollar needed was received in 2024. The $6.1B shortfall directly translates to reduced rations and suspended operations for ~90M people.</div>
+      <div class="chart-insight">The 2023&ndash;2024 funding crisis is the most severe in WFP&rsquo;s history &mdash; only 41 cents of every dollar needed was received in 2024. The $6.1B shortfall directly translates to reduced rations and suspended operations for ~90M people.</div>
     </div>
   </div>
 </div>
@@ -742,9 +744,15 @@ const WORLD_COUNTRIES=[
 
 const ipcColors={1:'#f9e04b',2:'#f5a12e',3:'#e2591a',4:'#bb2c0b',5:'#5e0606'};
 const ipcLabels={1:'IPC 1 — Minimal',2:'IPC 2 — Stressed',3:'IPC 3 — Crisis',4:'IPC 4 — Emergency',5:'IPC 5 — Famine'};
-let mapInstance=null, chartsInitialized=false, currentFilter='all', mapMarkers=[];
+let mapInstance=null, currentFilter='all', mapMarkers=[];
 let WFP_DATA={}, WORLDBANK_DATA={}, UNHCR_DATA={}, HDX_DATA={}, IPC_DATA={};
 let _mapSearchMatches=[];
+let trendsInitialized=false;
+let trendsSelectedCountry='Sudan';
+let trendsCompareMode=false;
+let trendsCompareCountries=['Sudan'];
+let trendsChartInstances={};
+const COMPARE_COLORS=['#bb2c0b','#185FA5','#3B6D11','#854F0B'];
 
 // ISO2 codes for World Bank API
 const ISO2={
@@ -816,7 +824,16 @@ function navigate(page){
   if(nav) nav.classList.add('active');
   window.scrollTo(0,0);
   if(page==='map'&&!mapInstance) setTimeout(initMap,100);
-  if(page==='trends'&&!chartsInitialized){chartsInitialized=true;setTimeout(initCharts,100);}
+  if(page==='trends'){
+    if(!trendsInitialized){
+      trendsInitialized=true;
+      buildCountryChips();
+      renderGHIChart();
+      renderRegionalChart();
+      setTimeout(initCharts,100);
+    }
+    updateAllTrendsCharts();
+  }
   if(page==='news') renderNews(currentFilter);
   if(page==='profiles') renderCountryList();
   if(page==='about') initAbout();
@@ -1069,151 +1086,28 @@ function initCharts(){
   Chart.defaults.animation.easing='easeOutQuart';
 
   const gridColor='rgba(0,0,0,0.05)';
-
-  // ── Timeline: stacked area by IPC phase ─────────────────────────────
-  const labels=['2018','2019','2020','2021','2022','2023','2024'];
-  const timelineAnnotations={
-    covidLine:{type:'line',xMin:'2020',xMax:'2020',borderColor:'rgba(0,0,0,0.18)',borderWidth:1,borderDash:[5,4],
-      label:{display:true,content:'COVID-19',font:{size:9,family:"'IBM Plex Mono',monospace"},
-        backgroundColor:'rgba(0,0,0,0.65)',color:'#fff',padding:{x:6,y:3},position:'start',yAdjust:-4}},
-    ukraineLine:{type:'line',xMin:'2022',xMax:'2022',borderColor:'rgba(0,0,0,0.15)',borderWidth:1,borderDash:[5,4],
-      label:{display:true,content:'Ukraine War',font:{size:9,family:"'IBM Plex Mono',monospace"},
-        backgroundColor:'rgba(0,0,0,0.65)',color:'#fff',padding:{x:6,y:3},position:'start',yAdjust:-4}}
-  };
-  new Chart(document.getElementById('chartTimeline'),{
-    type:'line',
-    data:{labels,datasets:[
-      {label:'IPC 5 — Famine',data:[3.5,3.8,4.5,5.2,4.8,5.3,4.8],
-        fill:true,borderColor:'#5e0606',backgroundColor:'rgba(94,6,6,0.42)',
-        borderWidth:2,pointRadius:5,pointHoverRadius:7,pointBackgroundColor:'#5e0606',tension:.35},
-      {label:'IPC 4 — Emergency',data:[41,52,65,78,88,96,99],
-        fill:true,borderColor:'#bb2c0b',backgroundColor:'rgba(187,44,11,0.32)',
-        borderWidth:2,pointRadius:5,pointHoverRadius:7,pointBackgroundColor:'#bb2c0b',tension:.35},
-      {label:'IPC 3 — Crisis',data:[69,79,86,110,165,232,276],
-        fill:true,borderColor:'#e2591a',backgroundColor:'rgba(226,89,26,0.22)',
-        borderWidth:2,pointRadius:5,pointHoverRadius:7,pointBackgroundColor:'#e2591a',tension:.35}
-    ]},
-    options:{
-      responsive:true,
-      interaction:{mode:'index',intersect:false},
-      plugins:{
-        legend:{display:true,position:'bottom',align:'start',labels:{boxWidth:10,padding:18,font:{size:10}}},
-        tooltip:{callbacks:{
-          label:ctx=>' '+ctx.dataset.label+': '+ctx.parsed.y+'M',
-          footer:items=>' Total IPC 3-5: '+(items.reduce((s,i)=>s+i.parsed.y,0).toFixed(1))+'M'
-        },padding:10,cornerRadius:4},
-        annotation:{annotations:timelineAnnotations}
-      },
-      scales:{
-        y:{stacked:true,grid:{color:gridColor},ticks:{callback:v=>v+'M'},
-          title:{display:true,text:'Population (Millions)',font:{size:10}}},
-        x:{grid:{display:false}}
-      }
-    }
-  });
-
-  // ── Regions: horizontal bar ──────────────────────────────────────────
-  new Chart(document.getElementById('chartRegions'),{
-    type:'bar',
-    data:{
-      labels:['East Africa','West Africa','Central Africa','Middle East','South Asia','SE Asia','Caribbean','Latin America'],
-      datasets:[{
-        label:'% food insecure',
-        data:[68,45,55,52,38,27,41,18],
-        backgroundColor:['#5e0606','#bb2c0b','#5e0606','#bb2c0b','#e2591a','#f5a12e','#e2591a','#f5a12e'],
-        borderRadius:3,borderSkipped:false
-      }]
-    },
-    options:{
-      indexAxis:'y',responsive:true,
-      plugins:{legend:{display:false},
-        tooltip:{callbacks:{label:ctx=>` ${ctx.parsed.x}% of regional population`},cornerRadius:4}},
-      scales:{
-        x:{grid:{color:gridColor},ticks:{callback:v=>v+'%'},max:80,
-          title:{display:true,text:'% of population in IPC 3+',font:{size:9}}},
-        y:{grid:{display:false},ticks:{font:{size:10}}}
-      }
-    }
-  });
-
-  // ── IPC Donut with center text ───────────────────────────────────────
-  const centerTextPlugin={
-    id:'centerText',
-    afterDraw(chart){
-      const {ctx,chartArea:{top,width,height}}=chart;
-      ctx.save();
-      ctx.textAlign='center';
-      const cy=top+height/2;
-      ctx.font='bold 20px monospace';
-      ctx.fillStyle='#1a1a18';
-      ctx.fillText('733M',width/2,cy-4);
-      ctx.font='9px monospace';
-      ctx.fillStyle='#6b6b6b';
-      ctx.fillText('TOTAL AFFECTED',width/2,cy+14);
-      ctx.restore();
-    }
-  };
-  new Chart(document.getElementById('chartIPC'),{
-    type:'doughnut',
-    data:{
-      labels:['IPC 2 — Stressed','IPC 3 — Crisis','IPC 4 — Emergency','IPC 5 — Famine'],
-      datasets:[{
-        data:[496,276,99,4.8],
-        backgroundColor:['#f5a12e','#e2591a','#bb2c0b','#5e0606'],
-        borderWidth:2,borderColor:'#fff',hoverOffset:8
-      }]
-    },
-    options:{
-      responsive:true,cutout:'68%',
-      plugins:{
-        legend:{position:'bottom',labels:{font:{size:10},padding:14,boxWidth:10}},
-        tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${ctx.parsed}M people`},cornerRadius:4}
-      }
-    },
-    plugins:[centerTextPlugin]
-  });
-
-  // ── Countries: top 10 horizontal bar ────────────────────────────────
-  const top10=[...CRISIS_DATA].sort((a,b)=>parseFloat(b.population)-parseFloat(a.population)).slice(0,10);
-  new Chart(document.getElementById('chartCountries'),{
-    type:'bar',
-    data:{
-      labels:top10.map(d=>d.country),
-      datasets:[{
-        label:'People in IPC 3+ (M)',
-        data:top10.map(d=>parseFloat(d.population)),
-        backgroundColor:top10.map(d=>ipcColors[d.ipc]+'cc'),
-        borderColor:top10.map(d=>ipcColors[d.ipc]),
-        borderWidth:1,borderRadius:3
-      }]
-    },
-    options:{
-      responsive:true,
-      plugins:{legend:{display:false},
-        tooltip:{callbacks:{
-          label:ctx=>` ${ctx.parsed.y}M people · IPC Phase ${top10[ctx.dataIndex].ipc}`
-        },cornerRadius:4}},
-      scales:{
-        y:{grid:{color:gridColor},ticks:{callback:v=>v+'M'},
-          title:{display:true,text:'Millions (IPC 3+)',font:{size:9}}},
-        x:{grid:{display:false},ticks:{font:{size:10}}}
-      }
-    }
-  });
+  const fundLabels=['2018','2019','2020','2021','2022','2023','2024'];
 
   // ── Funding gap: stacked bar ─────────────────────────────────────────
   const fundEl=document.getElementById('chartFunding');
   if(fundEl){
     const fundingAnnotations={
-      gapLine:{type:'label',xValue:'2023',yValue:12,content:['Funding crisis'],
-        font:{size:9,family:"'IBM Plex Mono',monospace"},
-        backgroundColor:'rgba(94,6,6,0.8)',color:'#fff',padding:{x:6,y:3},
-        position:'center'}
+      fundingCrisisLine:{
+        type:'line',xMin:'2023',xMax:'2023',
+        borderColor:'rgba(139,0,0,0.4)',borderWidth:1,borderDash:[4,4]
+      },
+      fundingCrisisLabel:{
+        type:'label',xValue:'2023',yValue:12.5,
+        content:['Funding crisis'],
+        backgroundColor:'rgba(139,0,0,0.85)',color:'white',
+        font:{size:10,family:"'IBM Plex Mono',monospace"},
+        padding:{x:8,y:4},position:'start',yAdjust:-10
+      }
     };
     new Chart(fundEl,{
       type:'bar',
       data:{
-        labels,
+        labels:fundLabels,
         datasets:[
           {label:'Funding Received ($B)',data:[3.1,4.2,4.8,7.2,8.8,5.1,4.2],
             backgroundColor:'rgba(226,89,26,0.85)',borderRadius:3,borderSkipped:false},
@@ -1240,7 +1134,7 @@ function initCharts(){
     });
   }
 
-  anime({targets:'.chart-card,.chart-card-full,.trend-metric',opacity:[0,1],translateY:[18,0],delay:anime.stagger(80),duration:700,easing:'easeOutCubic'});
+  anime({targets:'.chart-card-full',opacity:[0,1],translateY:[18,0],delay:anime.stagger(80),duration:700,easing:'easeOutCubic'});
 }
 
 function renderNews(filter){
@@ -1856,24 +1750,38 @@ function updateOverviewStats(){
       if(['3','4','5'].includes(r.ipc_phase)) totalPhase3plus+=pop;
     });
   });
-  function fmtPop(n){
+  function fmtNum(n){
     if(!n||n===0) return null;
-    if(n>=1e9) return (n/1e9).toFixed(1)+'B';
-    if(n>=1e6) return (n/1e6).toFixed(1)+'M';
-    if(n>=1e3) return (n/1e3).toFixed(0)+'K';
+    if(n>=1e9) return (n/1e9).toFixed(1);
+    if(n>=1e6) return (n/1e6).toFixed(1);
+    if(n>=1e3) return (n/1e3).toFixed(0);
     return n.toLocaleString();
   }
-  const updateStat=(id,value)=>{
-    const el=document.getElementById(id);
-    if(el&&value){el.style.opacity='0';setTimeout(()=>{el.textContent=value;el.style.transition='opacity 0.4s';el.style.opacity='1';},200);}
+  function fmtUnit(n){
+    if(!n||n===0) return '';
+    if(n>=1e9) return 'B';
+    if(n>=1e6) return 'M';
+    if(n>=1e3) return 'K';
+    return '';
+  }
+  const updateStat=(numId,unitId,value)=>{
+    const numEl=document.getElementById(numId);
+    if(!numEl||!value) return;
+    const unitEl=unitId?document.getElementById(unitId):null;
+    numEl.style.opacity='0';
+    setTimeout(()=>{
+      numEl.textContent=fmtNum(value);
+      if(unitEl) unitEl.textContent=fmtUnit(value);
+      numEl.style.transition='opacity 0.4s';
+      numEl.style.opacity='1';
+    },200);
   };
-  updateStat('stat1',fmtPop(totalPhase4));
-  updateStat('stat2',activeZones>0?String(activeZones):null);
-  updateStat('stat3',fmtPop(totalPhase5));
-  updateStat('stat4',fmtPop(totalPhase3plus));
+  updateStat('stat1','stat1-unit',totalPhase4);
+  updateStat('stat2',null,activeZones>0?activeZones:null);
+  updateStat('stat3','stat3-unit',totalPhase5);
+  updateStat('stat4','stat4-unit',totalPhase3plus);
   const badge=document.getElementById('overviewDataBadge');
   if(badge&&activeZones>0) badge.style.display='block';
-  console.log('[OVERVIEW] Stats updated — Phase 4: '+fmtPop(totalPhase4)+', Phase 5: '+fmtPop(totalPhase5)+', Phase 3+: '+fmtPop(totalPhase3plus)+', Zones: '+activeZones);
 }
 
 function buildMapPanelHDXSection(countryName){
@@ -2119,6 +2027,380 @@ function toggleAccordion(id){
   el.style.display=isOpen?'none':'block';
   if(chevron) chevron.style.transform=isOpen?'':'rotate(180deg)';
   if(!isOpen) anime({targets:el,opacity:[0,1],translateY:[-6,0],duration:250,easing:'easeOutCubic'});
+}
+
+// ── Trends Page Functions ───────────────────────────────────────────────
+
+function showChartEmpty(canvasId,message){
+  const canvas=document.getElementById(canvasId);
+  if(!canvas) return;
+  const parent=canvas.parentElement;
+  if(parent){
+    parent.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100%;font-family:\'IBM Plex Mono\',monospace;font-size:.65rem;color:var(--gray-400);text-align:center;padding:20px;">'+message+'</div>';
+  }
+}
+
+function buildCountryChips(){
+  const container=document.getElementById('countryChips');
+  if(!container) return;
+  container.innerHTML=CRISIS_DATA.map(d=>{
+    const isSelected=trendsCompareMode
+      ?trendsCompareCountries.includes(d.country)
+      :d.country===trendsSelectedCountry;
+    const bg=isSelected?ipcColors[d.ipc]:'transparent';
+    const border=isSelected?ipcColors[d.ipc]:'var(--gray-300)';
+    const color=isSelected?'white':'var(--gray-500)';
+    return '<button class="country-chip'+(isSelected?' active':'')+'" data-country="'+d.country+'" onclick="selectTrendsCountry(this.dataset.country)" style="font-family:\'IBM Plex Mono\',monospace;font-size:.58rem;letter-spacing:.08em;text-transform:uppercase;padding:5px 10px;border:1px solid '+border+';background:'+bg+';color:'+color+';cursor:pointer;border-radius:2px;transition:all .15s;">'+d.country+'</button>';
+  }).join('');
+}
+
+function selectTrendsCountry(countryName){
+  if(trendsCompareMode){
+    const idx=trendsCompareCountries.indexOf(countryName);
+    if(idx>=0){
+      if(trendsCompareCountries.length>1) trendsCompareCountries.splice(idx,1);
+    } else if(trendsCompareCountries.length<4){
+      trendsCompareCountries.push(countryName);
+    }
+  } else {
+    trendsSelectedCountry=countryName;
+    trendsCompareCountries=[countryName];
+  }
+  buildCountryChips();
+  updateAllTrendsCharts();
+}
+
+function toggleCompareMode(){
+  trendsCompareMode=!trendsCompareMode;
+  const btn=document.getElementById('compareModeBtn');
+  const hint=document.getElementById('compareModeHint');
+  if(trendsCompareMode){
+    trendsCompareCountries=[trendsSelectedCountry];
+    if(btn){btn.style.background='var(--ink)';btn.style.color='var(--white)';btn.style.border='1px solid var(--ink)';btn.textContent='× Exit Compare Mode';}
+    if(hint) hint.style.display='block';
+  } else {
+    trendsCompareCountries=[trendsSelectedCountry];
+    if(btn){btn.style.background='none';btn.style.color='var(--gray-500)';btn.style.border='1px solid var(--gray-300)';btn.textContent='⊕ Compare Countries';}
+    if(hint) hint.style.display='none';
+  }
+  buildCountryChips();
+  updateAllTrendsCharts();
+}
+
+function prepareCorrelationData(countryName){
+  const hdx=HDX_DATA[countryName]||{};
+  const conflictByMonth={};
+  (hdx.conflict||[]).forEach(e=>{
+    const date=e.reference_period_start&&e.reference_period_start.slice(0,7);
+    if(!date) return;
+    conflictByMonth[date]=(conflictByMonth[date]||0)+(e.events||1);
+  });
+  const hungerByPeriod={};
+  (hdx.food_security||[])
+    .filter(r=>r.ipc_type==='current'&&r.admin_level===0&&['3','4','5'].includes(r.ipc_phase))
+    .forEach(r=>{
+      const date=r.reference_period_start&&r.reference_period_start.slice(0,7);
+      if(!date) return;
+      hungerByPeriod[date]=(hungerByPeriod[date]||0)+(r.population_in_phase||0);
+    });
+  const allDates=[...new Set([...Object.keys(conflictByMonth),...Object.keys(hungerByPeriod)])].sort();
+  return{
+    labels:allDates,
+    conflict:allDates.map(d=>conflictByMonth[d]||null),
+    hunger:allDates.map(d=>hungerByPeriod[d]?hungerByPeriod[d]/1e6:null),
+    hasConflict:Object.keys(conflictByMonth).length>0,
+    hasHunger:Object.keys(hungerByPeriod).length>0,
+  };
+}
+
+function renderCorrelationChart(countries){
+  if(trendsChartInstances.correlation){trendsChartInstances.correlation.destroy();trendsChartInstances.correlation=null;}
+  const canvas=document.getElementById('correlationChart');
+  if(!canvas) return;
+  if(!trendsCompareMode||countries.length===1){
+    const countryName=countries[0];
+    const d=prepareCorrelationData(countryName);
+    if(!d.hasConflict&&!d.hasHunger){showChartEmpty('correlationChart','No time series data available for this country yet.');return;}
+    trendsChartInstances.correlation=new Chart(canvas,{
+      type:'line',
+      data:{labels:d.labels,datasets:[
+        {label:'Conflict Events (monthly)',data:d.conflict,borderColor:'#bb2c0b',backgroundColor:'rgba(187,44,11,0.08)',borderWidth:2,fill:true,tension:0.3,yAxisID:'yConflict',pointRadius:2,spanGaps:true},
+        {label:'People in IPC Phase 3+ (millions)',data:d.hunger,borderColor:'var(--ink)',backgroundColor:'rgba(0,0,0,0.04)',borderWidth:2,fill:true,tension:0.3,yAxisID:'yHunger',pointRadius:2,spanGaps:true}
+      ]},
+      options:{
+        responsive:true,maintainAspectRatio:false,
+        interaction:{mode:'index',intersect:false},
+        plugins:{
+          legend:{labels:{font:{family:"'IBM Plex Mono',monospace",size:10},color:'var(--gray-700)'}},
+          tooltip:{callbacks:{
+            title:ctx=>ctx[0].label,
+            label:ctx=>{const v=ctx.parsed.y;if(v===null) return null;return ctx.dataset.yAxisID==='yConflict'?' '+Math.round(v)+' conflict events':' '+v.toFixed(2)+'M people in crisis';}
+          }},
+          annotation:{annotations:{
+            lagZone:{type:'box',display:d.labels.length>6,xMin:d.labels[Math.floor(d.labels.length*0.35)]||d.labels[0],xMax:d.labels[Math.floor(d.labels.length*0.55)]||d.labels[d.labels.length-1],backgroundColor:'rgba(249,224,75,0.08)',borderColor:'rgba(249,224,75,0.4)',borderWidth:1},
+            lagLabel:{type:'label',display:d.labels.length>6,xValue:d.labels[Math.floor(d.labels.length*0.45)]||d.labels[0],yScaleID:'yConflict',yValue:'max',content:['Conflict → Hunger lag','~90–180 days'],font:[{size:9,family:"'IBM Plex Mono',monospace",style:'normal'},{size:8,family:"'IBM Plex Mono',monospace",style:'italic'}],color:'#8a6a00',yAdjust:20}
+          }}
+        },
+        scales:{
+          x:{ticks:{font:{family:"'IBM Plex Mono',monospace",size:9},maxTicksLimit:12,maxRotation:0},grid:{color:'rgba(0,0,0,0.04)'}},
+          yConflict:{type:'linear',position:'left',title:{display:true,text:'Conflict Events',font:{family:"'IBM Plex Mono',monospace",size:9},color:'#bb2c0b'},ticks:{font:{family:"'IBM Plex Mono',monospace",size:9},color:'#bb2c0b'},grid:{color:'rgba(0,0,0,0.04)'}},
+          yHunger:{type:'linear',position:'right',title:{display:true,text:'People in Crisis (M)',font:{family:"'IBM Plex Mono',monospace",size:9},color:'var(--gray-700)'},ticks:{font:{family:"'IBM Plex Mono',monospace",size:9},color:'var(--gray-700)',callback:v=>v.toFixed(1)+'M'},grid:{drawOnChartArea:false}}
+        }
+      }
+    });
+  } else {
+    const allLabels=[...new Set(countries.flatMap(c=>prepareCorrelationData(c).labels))].sort();
+    const datasets=countries.map((c,i)=>{
+      const d=prepareCorrelationData(c);
+      return{label:c,data:allLabels.map(l=>{const j=d.labels.indexOf(l);return j>=0?d.hunger[j]:null;}),borderColor:COMPARE_COLORS[i%COMPARE_COLORS.length],backgroundColor:'transparent',borderWidth:2,tension:0.3,pointRadius:2,spanGaps:true};
+    });
+    trendsChartInstances.correlation=new Chart(canvas,{
+      type:'line',
+      data:{labels:allLabels,datasets},
+      options:{
+        responsive:true,maintainAspectRatio:false,
+        interaction:{mode:'index',intersect:false},
+        plugins:{
+          legend:{labels:{font:{family:"'IBM Plex Mono',monospace",size:10}}},
+          tooltip:{callbacks:{label:ctx=>ctx.parsed.y!==null?' '+ctx.dataset.label+': '+ctx.parsed.y.toFixed(2)+'M in crisis':null}}
+        },
+        scales:{
+          x:{ticks:{font:{family:"'IBM Plex Mono',monospace",size:9},maxTicksLimit:12,maxRotation:0}},
+          y:{ticks:{font:{family:"'IBM Plex Mono',monospace",size:9},callback:v=>v.toFixed(1)+'M'}}
+        }
+      }
+    });
+  }
+}
+
+function prepareFoodPriceData(countryName){
+  const hdx=HDX_DATA[countryName]||{};
+  const prices=hdx.food_prices||[];
+  if(prices.length===0) return null;
+  const stapleKeywords=['maize','rice','wheat','bread','beans','oil','sorghum','millet','flour','sugar'];
+  const commodityMap={};
+  prices.forEach(p=>{
+    const name=(p.commodity_name||'').toLowerCase();
+    if(!stapleKeywords.some(k=>name.includes(k))) return;
+    const key=p.commodity_name;
+    if(!commodityMap[key]) commodityMap[key]=[];
+    commodityMap[key].push({date:p.reference_period_start&&p.reference_period_start.slice(0,7),price:p.price,currency:p.currency_code,unit:p.unit});
+  });
+  const commodities=Object.entries(commodityMap).filter(([,rows])=>rows.length>=3).sort((a,b)=>b[1].length-a[1].length).slice(0,4);
+  if(commodities.length===0) return null;
+  const allDates=[...new Set(commodities.flatMap(([,rows])=>rows.map(r=>r.date)))].filter(Boolean).sort();
+  const currency=commodities[0][1][0]&&commodities[0][1][0].currency||'';
+  const unit=commodities[0][1][0]&&commodities[0][1][0].unit||'';
+  return{
+    labels:allDates,
+    datasets:commodities.map(([name,rows],i)=>{
+      const byDate={};
+      rows.forEach(r=>{if(r.date) byDate[r.date]=r.price;});
+      return{label:name,data:allDates.map(d=>byDate[d]||null),borderColor:COMPARE_COLORS[i%COMPARE_COLORS.length],backgroundColor:'transparent',borderWidth:2,tension:0.3,pointRadius:2,spanGaps:true};
+    }),
+    currency,unit
+  };
+}
+
+function renderFoodPriceChart(countries){
+  if(trendsChartInstances.foodPrice){trendsChartInstances.foodPrice.destroy();trendsChartInstances.foodPrice=null;}
+  const canvas=document.getElementById('foodPriceChart');
+  if(!canvas) return;
+  const data=prepareFoodPriceData(countries[0]);
+  if(!data){showChartEmpty('foodPriceChart','Food price time series not available for this country.');return;}
+  trendsChartInstances.foodPrice=new Chart(canvas,{
+    type:'line',
+    data:{labels:data.labels,datasets:data.datasets},
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      interaction:{mode:'index',intersect:false},
+      plugins:{
+        legend:{labels:{font:{family:"'IBM Plex Mono',monospace",size:10}}},
+        tooltip:{callbacks:{label:ctx=>ctx.parsed.y!==null?' '+ctx.dataset.label+': '+ctx.parsed.y.toFixed(2)+' '+data.currency+'/'+data.unit:null}}
+      },
+      scales:{
+        x:{ticks:{font:{family:"'IBM Plex Mono',monospace",size:9},maxTicksLimit:12,maxRotation:0}},
+        y:{ticks:{font:{family:"'IBM Plex Mono',monospace",size:9},callback:v=>v.toFixed(2)+' '+data.currency}}
+      }
+    }
+  });
+}
+
+function prepareDisplacementData(countryName){
+  const hdx=HDX_DATA[countryName]||{};
+  const idps=hdx.idps||[];
+  if(idps.length===0) return null;
+  const byDate={};
+  idps.forEach(r=>{
+    const date=r.reference_period_start&&r.reference_period_start.slice(0,7);
+    if(!date) return;
+    byDate[date]=(byDate[date]||0)+(r.population||0);
+  });
+  const labels=Object.keys(byDate).sort();
+  return{labels,data:labels.map(d=>byDate[d]/1e6)};
+}
+
+function renderDisplacementChart(countries){
+  if(trendsChartInstances.displacement){trendsChartInstances.displacement.destroy();trendsChartInstances.displacement=null;}
+  const canvas=document.getElementById('displacementChart');
+  if(!canvas) return;
+  if(!trendsCompareMode||countries.length===1){
+    const data=prepareDisplacementData(countries[0]);
+    if(!data||data.labels.length===0){showChartEmpty('displacementChart','Displacement data not available for this country.');return;}
+    trendsChartInstances.displacement=new Chart(canvas,{
+      type:'bar',
+      data:{labels:data.labels,datasets:[{label:'Internally Displaced (M)',data:data.data,backgroundColor:'rgba(187,44,11,0.7)',borderColor:'#bb2c0b',borderWidth:1}]},
+      options:{
+        responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>' '+ctx.parsed.y.toFixed(2)+'M displaced'}}},
+        scales:{
+          x:{ticks:{font:{family:"'IBM Plex Mono',monospace",size:9},maxTicksLimit:10,maxRotation:0}},
+          y:{ticks:{font:{family:"'IBM Plex Mono',monospace",size:9},callback:v=>v.toFixed(1)+'M'}}
+        }
+      }
+    });
+  } else {
+    const allLabels=[...new Set(countries.flatMap(c=>{const d=prepareDisplacementData(c);return d?d.labels:[];}))].sort();
+    const datasets=countries.map((c,i)=>{
+      const data=prepareDisplacementData(c);
+      return data?{label:c,data:allLabels.map((l,j)=>({x:l,y:data.data[data.labels.indexOf(l)]})),borderColor:COMPARE_COLORS[i%COMPARE_COLORS.length],backgroundColor:'transparent',borderWidth:2,tension:0.3,spanGaps:true,type:'line'}:null;
+    }).filter(Boolean);
+    trendsChartInstances.displacement=new Chart(canvas,{
+      type:'line',
+      data:{labels:allLabels,datasets},
+      options:{
+        responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{labels:{font:{family:"'IBM Plex Mono',monospace",size:10}}}},
+        scales:{
+          x:{ticks:{font:{family:"'IBM Plex Mono',monospace",size:9},maxTicksLimit:10,maxRotation:0}},
+          y:{ticks:{font:{family:"'IBM Plex Mono',monospace",size:9},callback:v=>v.toFixed(1)+'M'}}
+        }
+      }
+    });
+  }
+}
+
+function renderGHIChart(){
+  if(trendsChartInstances.ghi){trendsChartInstances.ghi.destroy();trendsChartInstances.ghi=null;}
+  const canvas=document.getElementById('ghiChart');
+  if(!canvas) return;
+  const sorted=CRISIS_DATA.filter(d=>d.ghiScore).sort((a,b)=>b.ghiScore-a.ghiScore);
+  if(sorted.length===0){showChartEmpty('ghiChart','GHI score data not available.');return;}
+  trendsChartInstances.ghi=new Chart(canvas,{
+    type:'bar',
+    data:{
+      labels:sorted.map(d=>d.country),
+      datasets:[{
+        label:'GHI Score 2023',
+        data:sorted.map(d=>d.ghiScore),
+        backgroundColor:sorted.map(d=>d.ghiScore>=50?ipcColors[5]:d.ghiScore>=35?ipcColors[4]:d.ghiScore>=20?ipcColors[3]:d.ghiScore>=10?ipcColors[2]:ipcColors[1]),
+        borderWidth:0,borderRadius:2
+      }]
+    },
+    options:{
+      indexAxis:'y',responsive:true,maintainAspectRatio:false,
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{label:ctx=>{const s=ctx.parsed.x;return' GHI '+s.toFixed(1)+' — '+(s>=50?'Extremely Alarming':s>=35?'Alarming':s>=20?'Serious':s>=10?'Moderate':'Low');}}},
+        annotation:{annotations:{
+          seriousLine:{type:'line',xMin:20,xMax:20,borderColor:'rgba(0,0,0,0.15)',borderWidth:1,borderDash:[3,3],label:{display:true,content:'Serious',font:{size:9,family:"'IBM Plex Mono',monospace"},position:'start',yAdjust:-8}},
+          alarmingLine:{type:'line',xMin:35,xMax:35,borderColor:'rgba(0,0,0,0.15)',borderWidth:1,borderDash:[3,3],label:{display:true,content:'Alarming',font:{size:9,family:"'IBM Plex Mono',monospace"},position:'start',yAdjust:-8}}
+        }}
+      },
+      scales:{
+        x:{max:60,ticks:{font:{family:"'IBM Plex Mono',monospace",size:9}}},
+        y:{ticks:{font:{family:"'IBM Plex Mono',monospace",size:9}}}
+      }
+    }
+  });
+}
+
+function renderRegionalChart(){
+  if(trendsChartInstances.regional){trendsChartInstances.regional.destroy();trendsChartInstances.regional=null;}
+  const canvas=document.getElementById('regionalChart');
+  if(!canvas) return;
+  const regions={};
+  CRISIS_DATA.forEach(d=>{
+    if(!regions[d.region]) regions[d.region]={p3:0,p4:0,p5:0,count:0};
+    regions[d.region].count++;
+    if(d.ipc===3) regions[d.region].p3++;
+    else if(d.ipc===4) regions[d.region].p4++;
+    else if(d.ipc===5) regions[d.region].p5++;
+  });
+  const labels=Object.keys(regions);
+  trendsChartInstances.regional=new Chart(canvas,{
+    type:'bar',
+    data:{
+      labels,
+      datasets:[
+        {label:'IPC Phase 3 — Crisis',data:labels.map(r=>regions[r].p3),backgroundColor:ipcColors[3],borderWidth:0,borderRadius:2},
+        {label:'IPC Phase 4 — Emergency',data:labels.map(r=>regions[r].p4),backgroundColor:ipcColors[4],borderWidth:0,borderRadius:2},
+        {label:'IPC Phase 5 — Famine',data:labels.map(r=>regions[r].p5),backgroundColor:ipcColors[5],borderWidth:0,borderRadius:2}
+      ]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{
+        legend:{labels:{font:{family:"'IBM Plex Mono',monospace",size:10}}},
+        tooltip:{callbacks:{label:ctx=>' '+ctx.dataset.label+': '+ctx.parsed.y+' countries'}}
+      },
+      scales:{
+        x:{stacked:true,ticks:{font:{family:"'IBM Plex Mono',monospace",size:9}}},
+        y:{stacked:true,ticks:{font:{family:"'IBM Plex Mono',monospace",size:9},stepSize:1}}
+      }
+    }
+  });
+}
+
+function renderIPCTrendChart(countries){
+  if(trendsChartInstances.ipcTrend){trendsChartInstances.ipcTrend.destroy();trendsChartInstances.ipcTrend=null;}
+  const canvas=document.getElementById('ipcTrendChart');
+  if(!canvas) return;
+  const countryName=countries[0];
+  const hdx=HDX_DATA[countryName]||{};
+  const fs=(hdx.food_security||[]).filter(r=>r.ipc_type==='current'&&r.admin_level===0);
+  if(fs.length===0){showChartEmpty('ipcTrendChart','IPC phase time series not available for this country.');return;}
+  const byPeriod={};
+  fs.forEach(r=>{
+    const date=r.reference_period_start&&r.reference_period_start.slice(0,7);
+    if(!date) return;
+    if(!byPeriod[date]) byPeriod[date]={p3:0,p4:0,p5:0};
+    if(r.ipc_phase==='3') byPeriod[date].p3+=r.population_in_phase||0;
+    if(r.ipc_phase==='4') byPeriod[date].p4+=r.population_in_phase||0;
+    if(r.ipc_phase==='5') byPeriod[date].p5+=r.population_in_phase||0;
+  });
+  const labels=Object.keys(byPeriod).sort();
+  trendsChartInstances.ipcTrend=new Chart(canvas,{
+    type:'line',
+    data:{
+      labels,
+      datasets:[
+        {label:'Phase 5 — Catastrophe',data:labels.map(d=>byPeriod[d].p5/1e6||null),borderColor:ipcColors[5],backgroundColor:'rgba(94,6,6,0.08)',fill:true,borderWidth:2,tension:0.3,pointRadius:3,spanGaps:true},
+        {label:'Phase 4 — Emergency',data:labels.map(d=>byPeriod[d].p4/1e6||null),borderColor:ipcColors[4],backgroundColor:'rgba(187,44,11,0.08)',fill:true,borderWidth:2,tension:0.3,pointRadius:3,spanGaps:true},
+        {label:'Phase 3 — Crisis',data:labels.map(d=>byPeriod[d].p3/1e6||null),borderColor:ipcColors[3],backgroundColor:'rgba(226,89,26,0.08)',fill:true,borderWidth:2,tension:0.3,pointRadius:3,spanGaps:true}
+      ]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      interaction:{mode:'index',intersect:false},
+      plugins:{
+        legend:{labels:{font:{family:"'IBM Plex Mono',monospace",size:10}}},
+        tooltip:{callbacks:{label:ctx=>ctx.parsed.y!==null?' '+ctx.dataset.label+': '+ctx.parsed.y.toFixed(2)+'M':null}}
+      },
+      scales:{
+        x:{ticks:{font:{family:"'IBM Plex Mono',monospace",size:9},maxTicksLimit:12,maxRotation:0}},
+        y:{ticks:{font:{family:"'IBM Plex Mono',monospace",size:9},callback:v=>v.toFixed(1)+'M'},stacked:false}
+      }
+    }
+  });
+}
+
+function updateAllTrendsCharts(){
+  const countries=trendsCompareMode?trendsCompareCountries:[trendsSelectedCountry];
+  renderCorrelationChart(countries);
+  renderFoodPriceChart(countries);
+  renderDisplacementChart(countries);
+  renderIPCTrendChart(countries);
 }
 
 let aboutInitialized=false;

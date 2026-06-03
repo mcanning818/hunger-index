@@ -91,11 +91,15 @@ run('Category 3 — HTML Element IDs', {
   'mapEmergencyCount':() => hasId('mapEmergencyCount'),
   'dataLastUpdated':  () => hasId('dataLastUpdated'),
   'mapPanel':         () => hasId('mapPanel'),
-  // Charts
-  'chartTimeline':    () => hasId('chartTimeline'),
-  'chartRegions':     () => hasId('chartRegions'),
-  'chartIPC':         () => hasId('chartIPC'),
-  'chartCountries':   () => hasId('chartCountries'),
+  // Trends charts
+  'correlationChart': () => hasId('correlationChart'),
+  'ipcTrendChart':    () => hasId('ipcTrendChart'),
+  'foodPriceChart':   () => hasId('foodPriceChart'),
+  'displacementChart':() => hasId('displacementChart'),
+  'ghiChart':         () => hasId('ghiChart'),
+  'regionalChart':    () => hasId('regionalChart'),
+  'chartFunding':     () => hasId('chartFunding'),
+  'countryChips':     () => hasId('countryChips'),
   // Other
   'tickerTrack':      () => hasId('tickerTrack'),
   'feedbackForm':     () => hasId('feedbackForm'),
@@ -134,6 +138,18 @@ run('Category 4 — JavaScript Functions', {
   'updateDataTimestamp': () => hasFn('updateDataTimestamp'),
   'fetchLiveHungerData': () => hasFn('fetchLiveHungerData'),
   'startLiveDataRefresh':() => hasFn('startLiveDataRefresh'),
+  // Trends
+  'buildCountryChips':       () => hasFn('buildCountryChips'),
+  'selectTrendsCountry':     () => hasFn('selectTrendsCountry'),
+  'toggleCompareMode':       () => hasFn('toggleCompareMode'),
+  'renderCorrelationChart':  () => hasFn('renderCorrelationChart'),
+  'renderFoodPriceChart':    () => hasFn('renderFoodPriceChart'),
+  'renderDisplacementChart': () => hasFn('renderDisplacementChart'),
+  'renderGHIChart':          () => hasFn('renderGHIChart'),
+  'renderRegionalChart':     () => hasFn('renderRegionalChart'),
+  'renderIPCTrendChart':     () => hasFn('renderIPCTrendChart'),
+  'updateAllTrendsCharts':   () => hasFn('updateAllTrendsCharts'),
+  'showChartEmpty':          () => hasFn('showChartEmpty'),
   // Feedback
   'toggleFeedbackModal': () => hasFn('toggleFeedbackModal'),
 });

@@ -22,11 +22,12 @@ exports.handler = async function(event, context) {
 
   const endpoints = {
     food_security: `${BASE}/food-security-nutrition-poverty/food-security?${params}&admin_level=0`,
-    food_prices: `${BASE}/food-security-nutrition-poverty/food-prices-market-monitor?${params}&output_format=json&limit=20`,
+    food_prices: `${BASE}/food-security-nutrition-poverty/food-prices-market-monitor?${params}&output_format=json&limit=100`,
     poverty: `${BASE}/food-security-nutrition-poverty/poverty-rate?${params}`,
     idps: `${BASE}/affected-people/idps?${params}`,
     refugees: `${BASE}/affected-people/refugees-persons-of-concern?${params}`,
     needs: `${BASE}/affected-people/humanitarian-needs?${params}&admin_level=0`,
+    conflict: `${BASE}/coordination-context/conflict-event?${params}&limit=1000`,
   };
 
   const toFetch = type && endpoints[type]
