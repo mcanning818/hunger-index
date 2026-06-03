@@ -16,7 +16,7 @@ exports.handler = async function(event, context) {
 
   // ReliefWeb REST API — food security reports
   // Running server-side means no CORS issues
-  const RELIEFWEB_URL = 'https://api.reliefweb.int/v1/reports?appname=hunger-index&limit=20';
+  const RELIEFWEB_URL = 'https://api.reliefweb.int/v2/reports?appname=thehungerindex&limit=20';
 
   const body = JSON.stringify({
     limit: 20,
