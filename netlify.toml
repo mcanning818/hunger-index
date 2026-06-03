@@ -18,3 +18,13 @@
   from = "/api/news"
   to = "/.netlify/functions/news"
   status = 200
+
+[[redirects]]
+  from = "/api/hdx"
+  to = "/.netlify/functions/hdx"
+  status = 200
+
+[[redirects]]
+  from = "/api/ipc"
+  to = "/.netlify/functions/ipc"
+  status = 200

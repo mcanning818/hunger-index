@@ -750,7 +750,7 @@ const WORLD_COUNTRIES=[
 const ipcColors={1:'#f9e04b',2:'#f5a12e',3:'#e2591a',4:'#bb2c0b',5:'#5e0606'};
 const ipcLabels={1:'IPC 1 — Minimal',2:'IPC 2 — Stressed',3:'IPC 3 — Crisis',4:'IPC 4 — Emergency',5:'IPC 5 — Famine'};
 let mapInstance=null, chartsInitialized=false, currentFilter='all', mapMarkers=[];
-let WFP_DATA={}, WORLDBANK_DATA={}, UNHCR_DATA={};
+let WFP_DATA={}, WORLDBANK_DATA={}, UNHCR_DATA={}, HDX_DATA={}, IPC_DATA={};
 let _mapSearchMatches=[];
 
 // ISO2 codes for World Bank API
@@ -759,6 +759,18 @@ const ISO2={
   'Afghanistan':'AF','Ethiopia':'ET','Mali':'ML','Somalia':'SO','Myanmar':'MM','Syria':'SY',
   'Nigeria':'NG','Zimbabwe':'ZW','Cameroon':'CM','Chad':'TD','Kenya':'KE','Burkina Faso':'BF',
   'Lebanon':'LB','Colombia':'CO','Mozambique':'MZ','Tajikistan':'TJ','Guatemala':'GT','Burundi':'BI'
+};
+
+// ISO3 codes for HDX HAPI and IPC API
+const ISO3={
+  'Sudan':'SDN','South Sudan':'SSD','Gaza Strip':'PSE',
+  'Yemen':'YEM','Haiti':'HTI','DRC':'COD',
+  'Afghanistan':'AFG','Ethiopia':'ETH','Mali':'MLI',
+  'Somalia':'SOM','Myanmar':'MMR','Syria':'SYR',
+  'Nigeria':'NGA','Zimbabwe':'ZWE','Cameroon':'CMR',
+  'Chad':'TCD','Kenya':'KEN','Burkina Faso':'BFA',
+  'Lebanon':'LBN','Colombia':'COL','Mozambique':'MOZ',
+  'Tajikistan':'TJK','Guatemala':'GTM','Burundi':'BDI',
 };
 
 // API status tracking
@@ -783,13 +795,13 @@ const STATIC_NEWS_FALLBACK=[
 
 window.addEventListener('load',()=>{
   const tl=anime.timeline({easing:'easeOutExpo'});
-  const statuses=['Connecting to live data sources...','Loading WFP hunger classifications...','Fetching World Bank indicators...','Fetching ReliefWeb alerts...','Building crisis map...','Rendering dashboard...'];
+  const statuses=['Connecting to WFP HungerMap...','Fetching ReliefWeb situation reports...','Loading World Bank indicators...','Fetching UNHCR displacement data...','Loading HDX humanitarian indicators...','Fetching IPC classifications...','Rendering dashboard...'];
   tl
     .add({targets:'#loadLogo',opacity:[0,1],translateY:[20,0],duration:600})
     .add({targets:'#loadSub',opacity:[0,1],duration:400},'-=200')
     .add({targets:'#loadBarWrap',opacity:[0,1],duration:300},'-=100')
     .add({targets:'#loadBar',width:['0%','100%'],duration:1800,easing:'easeInOutQuad',
-      update:(a)=>{document.getElementById('loadStatus').textContent=statuses[Math.min(4,Math.floor(a.progress/20))];}
+      update:(a)=>{document.getElementById('loadStatus').textContent=statuses[Math.min(6,Math.floor(a.progress/14.3))];}
     })
     .add({targets:'#loadStatus',opacity:[0,1],duration:200},'-=1800')
     .add({targets:'#loadingOverlay',opacity:[1,0],duration:500,delay:300,
@@ -797,6 +809,7 @@ window.addEventListener('load',()=>{
         document.getElementById('loadingOverlay').style.display='none';
         initHome(); initTicker(); startLiveClock(); startDataRefresh(); startLiveDataRefresh();
         renderNews('all'); fetchAllExternalData();
+        fetchAllHDXData(); fetchAllIPCData();
       }
     });
 });
@@ -1773,52 +1786,235 @@ async function fetchAllExternalData(){
   await Promise.allSettled([fetchWorldBankData(), fetchUNHCRData()]);
 }
 
+async function fetchHDXData(countryName){
+  const iso3=ISO3[countryName];
+  if(!iso3) return null;
+  try{
+    const r=await fetch('/.netlify/functions/hdx?iso3='+iso3,{signal:AbortSignal.timeout(20000)});
+    if(!r.ok) return null;
+    const result=await r.json();
+    HDX_DATA[countryName]=result.data||{};
+    console.log('[HDX] Loaded data for '+countryName);
+    return HDX_DATA[countryName];
+  }catch(err){
+    console.warn('[HDX] Failed for '+countryName+':',err.message);
+    return null;
+  }
+}
+
+async function fetchAllHDXData(){
+  const BATCH_SIZE=4;
+  for(let i=0;i<CRISIS_DATA.length;i+=BATCH_SIZE){
+    const batch=CRISIS_DATA.slice(i,i+BATCH_SIZE);
+    await Promise.allSettled(batch.map(d=>fetchHDXData(d.country)));
+    if(i+BATCH_SIZE<CRISIS_DATA.length) await new Promise(r=>setTimeout(r,500));
+  }
+  console.log('[HDX] All country data fetched');
+}
+
+async function fetchIPCData(countryName){
+  const iso3=ISO3[countryName];
+  if(!iso3) return null;
+  try{
+    const r=await fetch('/.netlify/functions/ipc?iso3='+iso3,{signal:AbortSignal.timeout(20000)});
+    if(!r.ok) return null;
+    const result=await r.json();
+    if(result.status==='live'&&result.data){
+      IPC_DATA[countryName]=result.data;
+      console.log('[IPC] Loaded data for '+countryName);
+      return IPC_DATA[countryName];
+    }
+    return null;
+  }catch(err){
+    console.warn('[IPC] Failed for '+countryName+':',err.message);
+    return null;
+  }
+}
+
+async function fetchAllIPCData(){
+  const BATCH_SIZE=3;
+  for(let i=0;i<CRISIS_DATA.length;i+=BATCH_SIZE){
+    const batch=CRISIS_DATA.slice(i,i+BATCH_SIZE);
+    await Promise.allSettled(batch.map(d=>fetchIPCData(d.country)));
+    if(i+BATCH_SIZE<CRISIS_DATA.length) await new Promise(r=>setTimeout(r,800));
+  }
+  console.log('[IPC] All country data fetched');
+}
+
 function buildProfileHTML(d){
   const wb=WORLDBANK_DATA[d.country]||{};
   const un=UNHCR_DATA[d.country]||{};
+  const hdx=HDX_DATA[d.country]||{};
+  const ipc=IPC_DATA[d.country]||null;
+
   const ipcBar=[1,2,3,4,5].map(p=>'<div style="flex:1;height:8px;background:'+(p<=d.ipc?ipcColors[p]:'var(--gray-100)')+';"></div>').join('');
   const gdpStr=wb.gdpPerCap?'$'+Math.round(wb.gdpPerCap).toLocaleString():'—';
   const povStr=wb.povertyRate?wb.povertyRate.toFixed(1)+'%':'—';
   const malStr=wb.malnutrition?wb.malnutrition.toFixed(1)+'%':'—';
   const idpStr=un.displaced?((un.displaced/1e6).toFixed(2)+'M'):'—';
   const refStr=un.refugees?((un.refugees/1e6).toFixed(2)+'M'):'—';
-  const ghiStr=d.ghiScore?
-    '<div class="ghi-badge"><div><div class="ghi-badge-score" style="color:'+ipcColors[Math.min(5,Math.max(1,Math.round(d.ghiScore/20)))]+'">'+d.ghiScore.toFixed(1)+'</div><div class="ghi-badge-label">GHI Score 2023</div></div></div>':'';
+  const ghiColor=ipcColors[Math.min(5,Math.max(1,Math.round((d.ghiScore||0)/20)))];
+  const ghiStr=d.ghiScore?'<div class="ghi-badge"><div class="ghi-badge-score" style="color:'+ghiColor+'">'+d.ghiScore.toFixed(1)+'</div><div class="ghi-badge-label">GHI Score 2023</div></div>':'';
+
+  // HDX food security phase breakdown
+  const fsData=(hdx.food_security||[]).filter(r=>r.ipc_type==='current');
+  const fsPhases=[1,2,3,4,5].map(p=>{
+    const row=fsData.find(r=>r.ipc_phase===String(p));
+    return{phase:p,pop:row?row.population_in_phase:0,frac:row?(row.population_fraction_in_phase*100).toFixed(1):0};
+  });
+
+  // HDX food prices
+  const priceData=(hdx.food_prices||[]).slice(0,6);
+
+  // HDX humanitarian needs
+  const totalInNeed=(hdx.needs||[]).reduce((s,r)=>s+(r.population_in_need||0),0);
+
+  // IPC official dates
+  const ipcCurrentPhase=ipc?(ipc.current_period_dates||null):null;
+
+  function gaugeBar(value,min,max,label,unit){
+    unit=unit||'%';
+    if(!value||value==='—') return '';
+    const pct=Math.min(100,Math.max(0,((parseFloat(value)-min)/(max-min))*100));
+    const color=pct>66?'var(--ipc4)':pct>33?'var(--ipc3)':'var(--ipc2)';
+    return '<div style="margin-bottom:14px;">'
+      +'<div style="display:flex;justify-content:space-between;font-family:\'IBM Plex Mono\',monospace;font-size:.58rem;color:var(--gray-500);margin-bottom:4px;">'
+      +'<span>'+label+'</span><span style="color:var(--ink);font-weight:500;">'+value+unit+'</span></div>'
+      +'<div style="background:var(--gray-100);height:6px;border-radius:3px;position:relative;">'
+      +'<div style="position:absolute;left:0;top:0;height:6px;width:'+pct+'%;background:'+color+';border-radius:3px;transition:width .6s ease;"></div>'
+      +'</div></div>';
+  }
+
+  let accIdx=0;
+  function accordion(title,icon,badge,summary,content){
+    const id='acc-'+d.country.replace(/\s/g,'-')+'-'+(accIdx++);
+    return '<div class="profile-section" style="padding:0;overflow:hidden;">'
+      +'<button onclick="toggleAccordion(\''+id+'\')" style="width:100%;display:flex;align-items:center;justify-content:space-between;padding:16px 20px;background:none;border:none;cursor:pointer;text-align:left;">'
+      +'<div style="display:flex;align-items:center;gap:10px;">'
+      +'<span style="font-size:1.1rem;">'+icon+'</span>'
+      +'<div><div style="font-family:\'IBM Plex Mono\',monospace;font-size:.62rem;letter-spacing:.12em;text-transform:uppercase;color:var(--ink);font-weight:500;">'+title+'</div>'
+      +'<div style="font-family:\'Source Serif 4\',serif;font-size:.82rem;color:var(--gray-500);margin-top:2px;">'+summary+'</div></div></div>'
+      +'<div style="display:flex;align-items:center;gap:8px;">'+badge
+      +'<span id="'+id+'-chevron" style="font-family:\'IBM Plex Mono\',monospace;font-size:.8rem;color:var(--gray-500);transition:transform .2s;">▼</span>'
+      +'</div></button>'
+      +'<div id="'+id+'" style="display:none;padding:0 20px 20px;border-top:var(--border);">'+content+'</div>'
+      +'</div>';
+  }
+
+  // Section 1: IPC Classification
+  const fsPhaseHTML=fsPhases.some(r=>r.pop>0)?
+    '<div style="font-family:\'IBM Plex Mono\',monospace;font-size:.55rem;letter-spacing:.1em;text-transform:uppercase;color:var(--gray-500);margin-bottom:10px;">Population by phase — HDX HAPI</div>'
+    +fsPhases.map(r=>r.pop>0?
+      '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">'
+      +'<div style="font-family:\'IBM Plex Mono\',monospace;font-size:.58rem;color:white;background:'+ipcColors[r.phase]+';padding:2px 6px;border-radius:2px;min-width:48px;text-align:center;">P'+r.phase+'</div>'
+      +'<div style="flex:1;background:var(--gray-100);height:8px;border-radius:4px;position:relative;">'
+      +'<div style="position:absolute;left:0;top:0;height:8px;width:'+r.frac+'%;background:'+ipcColors[r.phase]+';border-radius:4px;"></div></div>'
+      +'<div style="font-family:\'IBM Plex Mono\',monospace;font-size:.58rem;color:var(--gray-700);min-width:80px;text-align:right;">'+(r.pop/1e6).toFixed(2)+'M · '+r.frac+'%</div></div>':'').join('')
+    :'';
+
+  const ipcSection=accordion('IPC Classification','🔴',
+    '<span style="background:'+ipcColors[d.ipc]+';color:white;font-family:\'IBM Plex Mono\',monospace;font-size:.52rem;padding:3px 8px;border-radius:2px;">'+d.severity+'</span>',
+    'Phase '+d.ipc+' · '+d.population+' people affected',
+    '<div style="margin-top:16px;">'
+    +'<div style="background:var(--gray-100);border-left:3px solid '+ipcColors[d.ipc]+';padding:12px 16px;margin-bottom:16px;font-family:\'Source Serif 4\',serif;font-size:.9rem;line-height:1.6;color:var(--ink);">'
+    +'<strong>Key insight:</strong> '+d.country+' is classified at IPC Phase '+d.ipc+' — '+d.severity+'. '+d.population+' people require immediate humanitarian response.</div>'
+    +'<div style="font-family:\'IBM Plex Mono\',monospace;font-size:.55rem;letter-spacing:.1em;text-transform:uppercase;color:var(--gray-500);margin-bottom:8px;">Phase severity scale</div>'
+    +'<div style="display:flex;gap:2px;margin-bottom:16px;">'+ipcBar+'</div>'
+    +fsPhaseHTML
+    +(ipcCurrentPhase?'<p style="font-family:\'IBM Plex Mono\',monospace;font-size:.55rem;color:var(--gray-500);margin-top:12px;">Current period: '+ipcCurrentPhase+' · Source: IPC API (ipcinfo.org)</p>':'')
+    +'<div class="profile-section" style="margin-top:16px;"><h3>Crisis Drivers</h3><p>'+d.drivers+'. These factors compound one another — reducing food production, disrupting supply chains, and eroding household purchasing power simultaneously.</p></div>'
+    +'</div>'
+  );
+
+  // Section 2: Economic Context
+  const priceHTML=priceData.length>0?
+    '<div style="margin-top:20px;border-top:var(--border);padding-top:16px;">'
+    +'<div style="font-family:\'IBM Plex Mono\',monospace;font-size:.55rem;letter-spacing:.1em;text-transform:uppercase;color:var(--gray-500);margin-bottom:10px;">Market food prices — WFP / HDX HAPI</div>'
+    +priceData.map(p=>'<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:0.5px solid var(--gray-100);">'
+      +'<div style="font-family:\'Source Serif 4\',serif;font-size:.85rem;">'+(p.commodity_name||p.commodity_code||'—')+'</div>'
+      +'<div style="font-family:\'IBM Plex Mono\',monospace;font-size:.75rem;color:var(--ink);">'+(p.price?p.price.toFixed(2):'—')+' <span style="color:var(--gray-500);font-size:.6rem;">'+(p.currency_code||'')+' / '+(p.unit||'unit')+'</span></div>'
+      +'</div>').join('')
+    +'</div>':'';
+
+  const ecoSection=accordion('Economic Context','📊',
+    '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:.52rem;color:var(--gray-500);">World Bank · HDX</span>',
+    gdpStr!=='—'?'GDP per capita '+gdpStr:'World Bank indicators',
+    '<div style="margin-top:16px;">'
+    +'<div style="background:var(--gray-100);border-left:3px solid var(--blue-mid);padding:12px 16px;margin-bottom:16px;font-family:\'Source Serif 4\',serif;font-size:.9rem;line-height:1.6;">'
+    +'<strong>Key insight:</strong> '+(wb.povertyRate?povStr+' of '+d.country+'\'s population lives below $2.15/day — the international extreme poverty line.':'Economic data for '+d.country+' is limited due to conflict and humanitarian access restrictions.')+'</div>'
+    +gaugeBar(wb.povertyRate,0,80,'Poverty rate ($2.15/day)')
+    +gaugeBar(wb.malnutrition,0,70,'Malnutrition prevalence')
+    +'<div class="profile-live-grid" style="margin-top:16px;">'
+    +'<div class="profile-live-stat"><div class="profile-live-val">'+gdpStr+'</div><div class="profile-live-lbl">GDP per capita</div></div>'
+    +'<div class="profile-live-stat"><div class="profile-live-val">'+povStr+'</div><div class="profile-live-lbl">Poverty rate</div></div>'
+    +'<div class="profile-live-stat"><div class="profile-live-val">'+malStr+'</div><div class="profile-live-lbl">Malnutrition</div></div>'
+    +'<div class="profile-live-stat"><div class="profile-live-val">'+d.population+'</div><div class="profile-live-lbl">Affected population</div></div>'
+    +'</div>'
+    +priceHTML
+    +'<p style="font-family:\'IBM Plex Mono\',monospace;font-size:.52rem;color:var(--gray-400);margin-top:12px;">Sources: World Bank Open Data API · WFP Price Database via HDX HAPI</p>'
+    +'</div>'
+  );
+
+  // Section 3: Displacement & Humanitarian Needs
+  const displSection=accordion('Displacement &amp; Humanitarian Needs','🏕️',
+    '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:.52rem;color:var(--gray-500);">UNHCR · IOM · HDX</span>',
+    idpStr!=='—'?idpStr+' displaced internally':'Displacement data',
+    '<div style="margin-top:16px;">'
+    +'<div style="background:var(--gray-100);border-left:3px solid var(--ipc3);padding:12px 16px;margin-bottom:16px;font-family:\'Source Serif 4\',serif;font-size:.9rem;line-height:1.6;">'
+    +'<strong>Key insight:</strong> '+(un.displaced?idpStr+' people are internally displaced in '+d.country:'Displacement tracking data is limited for '+d.country+' due to access constraints')+(un.refugees?', with an additional '+refStr+' who have fled as refugees to neighboring countries.':'.')+'</div>'
+    +'<div class="profile-live-grid">'
+    +'<div class="profile-live-stat"><div class="profile-live-val">'+idpStr+'</div><div class="profile-live-lbl">Internally displaced (IDPs)</div></div>'
+    +'<div class="profile-live-stat"><div class="profile-live-val">'+refStr+'</div><div class="profile-live-lbl">Refugees abroad</div></div>'
+    +(totalInNeed>0?'<div class="profile-live-stat"><div class="profile-live-val">'+(totalInNeed/1e6).toFixed(2)+'M</div><div class="profile-live-lbl">People in humanitarian need</div></div>':'')
+    +'</div>'
+    +'<p style="font-family:\'IBM Plex Mono\',monospace;font-size:.52rem;color:var(--gray-400);margin-top:12px;">Sources: UNHCR Population Statistics · IOM DTM · HDX HAPI · 2023–2024</p>'
+    +'</div>'
+  );
+
+  // Section 4: GHI & Data Sources
+  const ghiSeverity=d.ghiScore?(d.ghiScore<10?'Low hunger severity.':d.ghiScore<20?'Moderate hunger severity.':d.ghiScore<35?'Serious hunger severity.':d.ghiScore<50?'Alarming hunger severity.':'Extremely alarming hunger severity.'):'';
+  const metaSection=accordion('Global Hunger Index &amp; Sources','📋',
+    d.ghiScore?'<span style="font-family:\'IBM Plex Mono\',monospace;font-size:.52rem;color:var(--gray-500);">GHI '+d.ghiScore.toFixed(1)+'</span>':'',
+    'Data sources, methodology, and confidence',
+    '<div style="margin-top:16px;">'
+    +(d.ghiScore?'<div style="margin-bottom:20px;"><div style="font-family:\'IBM Plex Mono\',monospace;font-size:.55rem;letter-spacing:.1em;text-transform:uppercase;color:var(--gray-500);margin-bottom:8px;">Global Hunger Index Score</div>'
+      +ghiStr+'<p style="font-family:\'Source Serif 4\',serif;font-size:.85rem;line-height:1.6;color:var(--gray-700);margin-top:10px;">'+ghiSeverity+' Score combines undernourishment, child wasting, child stunting, and child mortality indicators.</p></div>':'')
+    +'<div style="font-family:\'IBM Plex Mono\',monospace;font-size:.55rem;letter-spacing:.1em;text-transform:uppercase;color:var(--gray-500);margin-bottom:8px;">Data sources used for this profile</div>'
+    +'<div style="display:flex;flex-direction:column;gap:6px;">'
+    +[['IPC Classification','ipcinfo.org · Official IPC API'],
+      ['Food Security Phases','HDX HAPI · food-security-nutrition-poverty/food-security'],
+      ['Market Food Prices','WFP VAM Database via HDX HAPI'],
+      ['Economic Indicators','World Bank Open Data API'],
+      ['Displacement','UNHCR Population Statistics · IOM DTM via HDX HAPI'],
+      ['Global Hunger Index','Welthungerhilfe &amp; Concern Worldwide · 2023 edition']
+    ].map(([name,src])=>'<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:0.5px solid var(--gray-100);">'
+      +'<div style="font-family:\'Source Serif 4\',serif;font-size:.82rem;">'+name+'</div>'
+      +'<div style="font-family:\'IBM Plex Mono\',monospace;font-size:.55rem;color:var(--gray-500);text-align:right;max-width:50%;">'+src+'</div></div>').join('')
+    +'</div></div>'
+  );
 
   return '<div class="profile-header">'
     +'<div class="profile-country-name">'+d.country+'</div>'
     +'<div class="profile-region">'+d.region+' &middot; Food Security Profile 2024–2026</div>'
     +'<span class="profile-ipc-badge" style="background:'+ipcColors[d.ipc]+'">'+ipcLabels[d.ipc]+'</span>'
-    +ghiStr
-    +'</div>'
+    +ghiStr+'</div>'
     +'<div class="profile-stats">'
-    +'<div class="profile-stat"><span class="profile-stat-val">'+d.population+'</span><div class="profile-stat-lbl">People Affected</div></div>'
-    +'<div class="profile-stat"><span class="profile-stat-val">IPC '+d.ipc+'</span><div class="profile-stat-lbl">Severity Phase</div></div>'
-    +'<div class="profile-stat"><span class="profile-stat-val">'+gdpStr+'</span><div class="profile-stat-lbl">GDP per Capita</div></div>'
-    +'<div class="profile-stat"><span class="profile-stat-val">'+malStr+'</span><div class="profile-stat-lbl">Malnutrition Rate</div></div>'
+    +'<div class="profile-stat"><span class="profile-stat-val">'+d.population+'</span><div class="profile-stat-lbl">People affected</div></div>'
+    +'<div class="profile-stat"><span class="profile-stat-val">IPC '+d.ipc+'</span><div class="profile-stat-lbl">Severity phase</div></div>'
+    +'<div class="profile-stat"><span class="profile-stat-val">'+gdpStr+'</span><div class="profile-stat-lbl">GDP per capita</div></div>'
+    +'<div class="profile-stat"><span class="profile-stat-val">'+idpStr+'</span><div class="profile-stat-lbl">Displaced</div></div>'
     +'</div>'
-    +'<div class="profile-section"><h3>IPC Severity Classification</h3>'
-    +'<div style="display:flex;gap:2px;margin-bottom:10px;">'+ipcBar+'</div>'
-    +'<p>'+d.country+' is classified at <strong>IPC Phase '+d.ipc+' — '+d.severity+'</strong>. An estimated '+d.population+' people face acute food insecurity requiring immediate humanitarian response. This classification reflects integrated analysis from WFP, FEWS NET, and UN OCHA situational assessments.</p>'
-    +'</div>'
-    +'<div class="profile-section"><h3>Crisis Drivers</h3><p>'+d.drivers+'. These factors compound one another — reducing food production, disrupting supply chains, and eroding household purchasing power simultaneously.</p></div>'
-    +'<div class="profile-section"><h3>Economic Context — World Bank Indicators</h3>'
-    +'<div class="profile-live-grid">'
-    +'<div class="profile-live-stat"><div class="profile-live-val">'+gdpStr+'</div><div class="profile-live-lbl">GDP per Capita</div></div>'
-    +'<div class="profile-live-stat"><div class="profile-live-val">'+povStr+'</div><div class="profile-live-lbl">Poverty Rate ($2.15/day)</div></div>'
-    +'<div class="profile-live-stat"><div class="profile-live-val">'+malStr+'</div><div class="profile-live-lbl">Undernourishment %</div></div>'
-    +'<div class="profile-live-stat"><div class="profile-live-val">'+d.population+'</div><div class="profile-live-lbl">Affected Population</div></div>'
-    +'</div></div>'
-    +'<div class="profile-section"><h3>Displacement &amp; Refugees — UNHCR</h3>'
-    +'<div class="profile-live-grid">'
-    +'<div class="profile-live-stat"><div class="profile-live-val">'+idpStr+'</div><div class="profile-live-lbl">Internally Displaced</div></div>'
-    +'<div class="profile-live-stat"><div class="profile-live-val">'+refStr+'</div><div class="profile-live-lbl">Refugees Abroad</div></div>'
-    +'</div>'
-    +'<p style="font-family:\'IBM Plex Mono\',monospace;font-size:.55rem;color:var(--gray-500);margin-top:12px;line-height:1.6;">Source: UNHCR Population Statistics Database · 2023–2024</p>'
-    +'</div>'
-    +'<div class="profile-section"><h3>Data Sources</h3>'
-    +'<p>IPC classification: WFP HungerMap &amp; FEWS NET monthly assessments. Economic indicators: World Bank Open Data API. Displacement: UNHCR Population Statistics. Humanitarian alerts: UN OCHA ReliefWeb. Global Hunger Index: Welthungerhilfe &amp; Concern Worldwide '+(d.ghiScore?'(GHI score: '+d.ghiScore.toFixed(1)+')':'(not available for this territory)')+'.</p>'
-    +'</div>';
+    +ipcSection+ecoSection+displSection+metaSection;
+}
+
+function toggleAccordion(id){
+  const el=document.getElementById(id);
+  const chevron=document.getElementById(id+'-chevron');
+  if(!el) return;
+  const isOpen=el.style.display!=='none';
+  el.style.display=isOpen?'none':'block';
+  if(chevron) chevron.style.transform=isOpen?'':'rotate(180deg)';
+  if(!isOpen) anime({targets:el,opacity:[0,1],translateY:[-6,0],duration:250,easing:'easeOutCubic'});
 }
 
 document.getElementById('feedbackForm').addEventListener('submit',function(e){
