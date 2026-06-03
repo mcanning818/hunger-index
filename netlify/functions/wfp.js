@@ -2,6 +2,8 @@
 // Replaces the /api/wfp route from server.js
 // Called via /.netlify/functions/wfp (or /api/wfp via redirect in netlify.toml)
 
+exports.config = { timeout: 26 };
+
 exports.handler = async function(event, context) {
   const headers = {
     'Access-Control-Allow-Origin': '*',
@@ -29,7 +31,7 @@ exports.handler = async function(event, context) {
           'Accept': 'application/json',
           'User-Agent': 'HungerIndex/1.0 (thehungerindex.netlify.app)'
         },
-        signal: AbortSignal.timeout(8000)
+        signal: AbortSignal.timeout(25000)
       });
 
       if (!response.ok) {

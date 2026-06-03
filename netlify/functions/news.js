@@ -33,7 +33,7 @@ exports.handler = async function(event, context) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
       body,
-      signal: AbortSignal.timeout(10000)
+      signal: AbortSignal.timeout(25000)
     });
 
     if (!r.ok) throw new Error(`ReliefWeb returned HTTP ${r.status}`);
@@ -77,36 +77,37 @@ exports.handler = async function(event, context) {
       'food+security+Sudan+Yemen+Gaza'
     ];
 
-    const allArticles = [];
+    const results = await Promise.allSettled(
+      queries.map(q =>
+        fetch(
+          `https://api.gdeltproject.org/api/v2/doc/doc?query=${q}&mode=artlist&maxrecords=10&sort=datedesc&format=json&timespan=7d`,
+          { signal: AbortSignal.timeout(25000) }
+        ).then(r => r.ok ? r.json() : { articles: [] })
+         .catch(() => ({ articles: [] }))
+      )
+    );
 
-    for (const q of queries) {
-      try {
-        const url = `https://api.gdeltproject.org/api/v2/doc/doc?query=${q}&mode=artlist&maxrecords=10&sort=datedesc&format=json&timespan=7d`;
-        const r = await fetch(url, { signal: AbortSignal.timeout(10000) });
-        if (!r.ok) continue;
-        const data = await r.json();
-        const articles = (data.articles || []).map(a => {
-          const title = a.title || '';
-          const t = title.toLowerCase();
-          const tags = [];
-          if (/famine|ipc.5/.test(t)) tags.push('famine');
-          if (/emergency|crisis/.test(t)) tags.push('emergency');
-          if (/africa|sudan|somalia|ethiopia|nigeria|drc|kenya|chad|zimbabwe|mozambique/.test(t)) tags.push('africa');
-          if (/gaza|yemen|syria|lebanon|middle.east/.test(t)) tags.push('middleeast');
-          if (/afghanistan|myanmar|asia/.test(t)) tags.push('asia');
-          if (tags.length === 0) tags.push('emergency');
-          return {
-            source: a.domain || 'News',
-            title,
-            body: `Full article available at source.`,
-            date: a.seendate ? new Date(a.seendate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : '',
-            tags,
-            url: a.url || ''
-          };
-        }).filter(a => a.title.length > 10);
-        allArticles.push(...articles);
-      } catch(_) {}
-    }
+    const allArticles = results
+      .filter(r => r.status === 'fulfilled')
+      .flatMap(r => (r.value.articles || []).map(a => {
+        const title = a.title || '';
+        const t = title.toLowerCase();
+        const tags = [];
+        if (/famine|ipc.5/.test(t)) tags.push('famine');
+        if (/emergency|crisis/.test(t)) tags.push('emergency');
+        if (/africa|sudan|somalia|ethiopia|nigeria|drc|kenya|chad|zimbabwe|mozambique/.test(t)) tags.push('africa');
+        if (/gaza|yemen|syria|lebanon|middle.east/.test(t)) tags.push('middleeast');
+        if (/afghanistan|myanmar|asia/.test(t)) tags.push('asia');
+        if (tags.length === 0) tags.push('emergency');
+        return {
+          source: a.domain || 'News',
+          title,
+          body: 'Full article available at source.',
+          date: a.seendate ? new Date(a.seendate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : '',
+          tags,
+          url: a.url || ''
+        };
+      }));
 
     const seen = new Set();
     const unique = allArticles.filter(a => {
