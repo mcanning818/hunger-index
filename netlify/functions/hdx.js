@@ -12,7 +12,6 @@ exports.handler = async function(event, context) {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers, body: '' };
 
   const APP_ID = process.env.HDX_APP_ID;
-  console.log('APP_ID:', APP_ID);
   if (!APP_ID) return { statusCode: 500, headers, body: JSON.stringify({ error: 'HDX_APP_ID not configured' }) };
 
   const { iso3, type } = event.queryStringParameters || {};
@@ -38,7 +37,6 @@ exports.handler = async function(event, context) {
   await Promise.allSettled(
     Object.entries(toFetch).map(async ([key, url]) => {
       try {
-        console.log('Fetching URL:', url);
         const r = await fetch(url, { signal: AbortSignal.timeout(12000) });
         if (!r.ok) { console.warn(`HDX ${key} failed: HTTP ${r.status}`); return; }
         const data = await r.json();
