@@ -27,11 +27,11 @@ exports.handler = async function(event, context) {
     filter: {
       operator: 'OR',
       conditions: [
-        { field: 'theme.name', value: 'Food and Nutrition' },
-        { field: 'theme.name', value: 'Agriculture' },
-        { field: 'source.name', value: 'WFP' },
-        { field: 'source.name', value: 'FEWS NET' },
-        { field: 'source.name', value: 'UN OCHA' }
+        { field: 'source.shortname', value: 'WFP' },
+        { field: 'source.shortname', value: 'FEWS NET' },
+        { field: 'source.shortname', value: 'OCHA' },
+        { field: 'source.shortname', value: 'FAO' },
+        { field: 'source.shortname', value: 'IPC' }
       ]
     }
   });
