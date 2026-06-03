@@ -17,7 +17,7 @@ exports.handler = async function(event, context) {
   const { iso3, type } = event.queryStringParameters || {};
   if (!iso3) return { statusCode: 400, headers, body: JSON.stringify({ error: 'iso3 parameter required' }) };
 
-  const BASE = 'https://hapi.humdata.org/api/v1';
+  const BASE = 'https://hapi.humdata.org/api/v2';
   const params = `location_code=${iso3.toUpperCase()}&output_format=json&limit=1000&app_identifier=${APP_ID}`;
 
   const endpoints = {
