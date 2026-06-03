@@ -1,3 +1,5 @@
+exports.config = { timeout: 26 };
+
 exports.handler = async function(event, context) {
   const headers = {
     'Access-Control-Allow-Origin': '*',
