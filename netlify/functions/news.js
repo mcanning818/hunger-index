@@ -12,6 +12,8 @@ exports.handler = async function(event, context) {
     return { statusCode: 200, headers, body: '' };
   }
 
+  const _errors = [];
+
   // ATTEMPT 1: ReliefWeb v2 JSON API — filter by known org shortnames (returns results reliably)
   try {
     const rwBody = JSON.stringify({
@@ -39,7 +41,10 @@ exports.handler = async function(event, context) {
     });
 
     console.log('[NEWS] ReliefWeb response status:', r.status);
-    if (!r.ok) throw new Error('ReliefWeb HTTP ' + r.status);
+    if (!r.ok) {
+      const errBody = await r.text().catch(() => '');
+      throw new Error('ReliefWeb HTTP ' + r.status + ' — ' + errBody.slice(0, 300));
+    }
     const data = await r.json();
 
     const items = (data.data || []).map(item => {
@@ -69,6 +74,7 @@ exports.handler = async function(event, context) {
     }
     throw new Error('ReliefWeb returned 0 items');
   } catch(err) {
+    _errors.push('json: ' + err.message);
     console.warn('[NEWS] ReliefWeb JSON failed (' + err.message + ') — trying RSS');
   }
 
@@ -111,14 +117,15 @@ exports.handler = async function(event, context) {
     }
     throw new Error('RSS returned 0 items');
   } catch(err) {
+    _errors.push('rss: ' + err.message);
     console.warn('[NEWS] ReliefWeb RSS failed: ' + err.message);
   }
 
   // ATTEMPT 3: Static fallback
-  console.warn('[NEWS] All sources failed — frontend will use static NEWS_DATA');
+  console.warn('[NEWS] All sources failed — errors:', JSON.stringify(_errors));
   return {
     statusCode: 200,
     headers,
-    body: JSON.stringify({ status: 'unavailable', items: [], timestamp: new Date().toISOString() })
+    body: JSON.stringify({ status: 'unavailable', items: [], errors: _errors, timestamp: new Date().toISOString() })
   };
 };
