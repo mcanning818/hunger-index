@@ -1778,6 +1778,8 @@ async function fetchLiveNews(append=false){
       renderSidebarNews();
       apiStatus.news=true; lastLiveUpdateTs=Date.now(); updateDisclaimer(); flashUpdate();
       console.log('[NEWS] Loaded',newsArticles.length,'/',newsTotalCount,'articles');
+      const banner=document.getElementById('dataBanner');
+      if(banner) banner.style.transform='translateY(-100%)';
     } else {
       if(!append){
         newsArticles=STATIC_NEWS_FALLBACK.map(n=>({
@@ -1818,8 +1820,11 @@ function updateNewsCount(){
 }
 
 function updateNewsLoadMore(hasMore){
+  console.log('[NEWS] hasMore:',hasMore,'total:',newsTotalCount,'loaded:',newsArticles.length);
   const btn=document.getElementById('newsLoadMoreBtn');
+  const endMsg=document.getElementById('newsEndMessage');
   if(btn) btn.style.display=hasMore?'block':'none';
+  if(endMsg) endMsg.style.display=hasMore?'none':'block';
 }
 
 function setNewsCountryFilter(value){
