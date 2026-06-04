@@ -16,7 +16,6 @@ exports.handler = async function(event, context) {
     limit = '20',
     country = '',
     format = '',
-    dateFrom = '',
   } = event.queryStringParameters || {};
 
   const conditions = [];
@@ -54,15 +53,6 @@ exports.handler = async function(event, context) {
       operator: 'OR'
     });
   }
-
-  const sixMonthsAgo = dateFrom
-    ? new Date(dateFrom).toISOString()
-    : (() => { const d = new Date(); d.setMonth(d.getMonth() - 6); return d.toISOString(); })();
-
-  conditions.push({
-    field: 'date.created',
-    value: { from: sixMonthsAgo }
-  });
 
   const body = {
     appname,
