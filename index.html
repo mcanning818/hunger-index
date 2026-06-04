@@ -1714,7 +1714,8 @@ async function fetchHDXData(countryName){
     if(result&&result.data){
       HDX_DATA[countryName]=result.data;
       const counts=Object.keys(result.data).map(k=>k+':'+(result.data[k]||[]).length).join(', ');
-      console.log('[HDX] Loaded data for '+countryName+' — '+counts);
+      console.log('[HDX] Loaded data for '+countryName+' — '+(counts||'(all empty)'));
+      if(result.errors&&Object.keys(result.errors).length>0) console.error('[HDX] Endpoint errors for '+countryName+':', JSON.stringify(result.errors));
       const sample=(result.data.food_security||[])[0];
       if(sample) console.log('[HDX] Sample food_security row for '+countryName+':', JSON.stringify(sample));
       else console.warn('[HDX] No food_security rows for '+countryName);

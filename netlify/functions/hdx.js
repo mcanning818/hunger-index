@@ -35,6 +35,7 @@ exports.handler = async function(event, context) {
     : endpoints;
 
   const results = {};
+  const errors = {};
   await Promise.allSettled(
     Object.entries(toFetch).map(async ([key, url]) => {
       try {
@@ -43,15 +44,22 @@ exports.handler = async function(event, context) {
           headers: {
             'Accept': 'application/json',
             'User-Agent': 'TheHungerIndex/1.0 (thehungerindex.netlify.app; mikahcanning@gmail.com)',
-            'Content-Type': 'application/json'
           }
         });
-        if (!r.ok) { console.warn(`HDX ${key} failed: HTTP ${r.status}`); return; }
+        if (!r.ok) {
+          const body = await r.text().catch(() => '');
+          console.warn(`HDX ${key} failed: HTTP ${r.status} — ${body.slice(0, 200)}`);
+          errors[key] = { status: r.status, body: body.slice(0, 200) };
+          return;
+        }
         const data = await r.json();
-        results[key] = data.data || [];
+        const topKeys = Object.keys(data);
+        console.log(`HDX ${key} for ${iso3}: top-level keys=${JSON.stringify(topKeys)}`);
+        results[key] = data.data || data.results || data.items || [];
         console.log(`HDX ${key} for ${iso3}: ${results[key].length} rows`);
       } catch (err) {
         console.warn(`HDX ${key} error:`, err.message);
+        errors[key] = { error: err.message };
       }
     })
   );
@@ -59,6 +67,6 @@ exports.handler = async function(event, context) {
   return {
     statusCode: 200,
     headers,
-    body: JSON.stringify({ iso3: iso3.toUpperCase(), data: results, timestamp: new Date().toISOString() })
+    body: JSON.stringify({ iso3: iso3.toUpperCase(), data: results, errors, timestamp: new Date().toISOString() })
   };
 };
