@@ -55,16 +55,13 @@ exports.handler = async function(event, context) {
     });
   }
 
-  const sixMonthsAgo = dateFrom || (() => {
-    const d = new Date();
-    d.setMonth(d.getMonth() - 6);
-    return d.toISOString().slice(0, 10);
-  })();
+  const sixMonthsAgo = dateFrom
+    ? new Date(dateFrom).toISOString()
+    : (() => { const d = new Date(); d.setMonth(d.getMonth() - 6); return d.toISOString(); })();
 
   conditions.push({
     field: 'date.created',
-    value: { from: sixMonthsAgo },
-    operator: 'AND'
+    value: { from: sixMonthsAgo }
   });
 
   const body = {
