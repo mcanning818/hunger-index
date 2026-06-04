@@ -30,7 +30,7 @@ exports.handler = async function(event, context) {
       }
     });
 
-    const r = await fetch('https://api.reliefweb.int/v2/reports?appname=thehungerindex&limit=20', {
+    const r = await fetch('https://api.reliefweb.int/v2/reports?appname=thehungerindex-TlD3aiDqg3-2026&limit=20', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'User-Agent': 'HungerIndex/1.0 (thehungerindex.netlify.app)' },
       body: rwBody,
