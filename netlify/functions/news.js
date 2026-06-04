@@ -30,6 +30,7 @@ exports.handler = async function(event, context) {
       }
     });
 
+    console.log('[NEWS] Appname being used: thehungerindex-TlD3aiDqg3-2026');
     const r = await fetch('https://api.reliefweb.int/v2/reports?appname=thehungerindex-TlD3aiDqg3-2026&limit=20', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'User-Agent': 'HungerIndex/1.0 (thehungerindex.netlify.app)' },
@@ -37,6 +38,7 @@ exports.handler = async function(event, context) {
       signal: AbortSignal.timeout(25000)
     });
 
+    console.log('[NEWS] ReliefWeb response status:', r.status);
     if (!r.ok) throw new Error('ReliefWeb HTTP ' + r.status);
     const data = await r.json();
 
