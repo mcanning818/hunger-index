@@ -150,6 +150,9 @@ run('Category 4 — JavaScript Functions', {
   'renderIPCTrendChart':     () => hasFn('renderIPCTrendChart'),
   'updateAllTrendsCharts':   () => hasFn('updateAllTrendsCharts'),
   'showChartEmpty':          () => hasFn('showChartEmpty'),
+  'showTrendsLoadingState':  () => hasFn('showTrendsLoadingState'),
+  'ensureCanvas':            () => hasFn('ensureCanvas'),
+  'onHDXDataReady':          () => hasFn('onHDXDataReady'),
   // Feedback
   'toggleFeedbackModal': () => hasFn('toggleFeedbackModal'),
 });

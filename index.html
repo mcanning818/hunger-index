@@ -278,6 +278,26 @@ nav{position:fixed;top:0;left:0;right:0;z-index:1000;background:var(--white);bor
 .od-sep{font-family:'IBM Plex Mono',monospace;font-size:clamp(1.9rem,4.8vw,3.4rem);color:rgba(245,161,46,0.45);align-self:center;padding:0 1px;line-height:1;pointer-events:none;}
 .hero-counter-text{display:block;font-size:clamp(1rem,2.4vw,1.7rem);margin-top:6px;font-style:normal;color:rgba(255,255,255,0.82);letter-spacing:0.01em;}
 .hero-counter-meta{display:block;font-family:'IBM Plex Mono',monospace;font-size:.55rem;letter-spacing:.18em;text-transform:uppercase;color:rgba(255,255,255,.4);margin-bottom:8px;}
+/* ── Global overflow prevention ──────────────────────────────────── */
+html{overflow-x:hidden;}
+img,canvas,video,iframe{max-width:100%;}
+/* ── News articles: anchor reset + touch support ────────────────── */
+a.news-article{text-decoration:none;color:inherit;touch-action:manipulation;-webkit-tap-highlight-color:rgba(0,0,0,.05);}
+a.news-article:active{opacity:.85;}
+/* ── Mobile inline-style overrides ──────────────────────────────── */
+@media(max-width:768px){
+  .map-sidebar{display:none!important;}
+  .trends-layout{padding:24px 16px!important;}
+  .news-layout{padding:24px 16px!important;}
+  [style*="grid-template-columns:1fr 1fr"]{grid-template-columns:1fr!important;}
+  [style*="grid-template-columns: 1fr 1fr"]{grid-template-columns:1fr!important;}
+  [style*="grid-template-columns:repeat(5,1fr)"]{grid-template-columns:repeat(2,1fr)!important;}
+  [style*="grid-template-columns:1fr 1fr 1fr"]{grid-template-columns:1fr!important;}
+  [style*="padding:32px"]{padding:16px!important;}
+  [style*="max-width:860px"]{max-width:100%!important;padding-left:16px!important;padding-right:16px!important;}
+  [style*="min-width:140px"]{min-width:unset!important;}
+  #page-map{overflow:hidden;}
+}
 </style>
 </head>
 <body>
@@ -413,6 +433,14 @@ nav{position:fixed;top:0;left:0;right:0;z-index:1000;background:var(--white);bor
         Updated: <span id="dataLastUpdated">—</span>
       </div>
     </div>
+  </div>
+
+  <!-- Mobile bottom sheet -->
+  <div id="mapBottomSheetOverlay" onclick="closeMapBottomSheet()" style="display:none;position:fixed;top:0;left:0;right:0;height:40%;z-index:498;background:transparent;"></div>
+  <div id="mapBottomSheet" style="display:none;position:fixed;bottom:0;left:0;right:0;height:65%;background:var(--white);border-radius:16px 16px 0 0;box-shadow:0 -4px 24px rgba(0,0,0,0.18);z-index:499;overflow-y:auto;transform:translateY(100%);transition:transform 0.3s cubic-bezier(0.4,0,0.2,1);">
+    <div style="width:36px;height:4px;background:var(--gray-300);border-radius:2px;margin:12px auto 0;"></div>
+    <button onclick="closeMapBottomSheet()" style="position:absolute;top:14px;right:16px;background:none;border:none;font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:var(--gray-500);cursor:pointer;letter-spacing:.08em;text-transform:uppercase;padding:4px 8px;">✕ Close</button>
+    <div id="mapBottomSheetContent" style="padding:20px 20px 48px;"></div>
   </div>
 </div>
 
@@ -1245,7 +1273,7 @@ function renderNews(filter){
   const c=document.getElementById('newsFeed');
   if(!filtered.length){c.innerHTML='<div class="empty-state">No articles match this filter.</div>';return;}
   c.innerHTML=filtered.map(n=>`
-    <div class="news-article">
+    <a class="news-article" href="${n.url||'#'}" target="_blank" rel="noopener noreferrer">
       <div>
         <div class="article-source">${n.source}</div>
         <div class="article-title">${n.title}</div>
@@ -1253,7 +1281,7 @@ function renderNews(filter){
         <div class="article-tags">${n.tags.map(t=>`<span class="tag">${t}</span>`).join('')}</div>
       </div>
       <div class="article-date">${n.date}</div>
-    </div>`).join('');
+    </a>`).join('');
   anime({targets:'.news-article',opacity:[0,1],translateY:[8,0],delay:anime.stagger(60),duration:400,easing:'easeOutCubic'});
 }
 
@@ -1511,12 +1539,50 @@ function buildPanelHTML(d){
     +'</div>'
     +'<button onclick="navigate(\'profiles\');setTimeout(()=>selectCountry(\''+d.country+'\'),200)" style="margin-top:12px;width:100%;padding:10px;background:var(--ink);color:white;border:none;cursor:pointer;font-family:\'IBM Plex Mono\',monospace;font-size:.6rem;letter-spacing:.12em;text-transform:uppercase;">View Full Profile &#x2192;</button>';
 }
+function isMobile(){return window.innerWidth<=768;}
+
+function openMapBottomSheet(html){
+  if(!isMobile()) return;
+  const sheet=document.getElementById('mapBottomSheet');
+  const overlay=document.getElementById('mapBottomSheetOverlay');
+  const content=document.getElementById('mapBottomSheetContent');
+  if(!sheet||!content) return;
+  content.innerHTML=html;
+  if(overlay) overlay.style.display='block';
+  sheet.style.display='block';
+  requestAnimationFrame(()=>{sheet.style.transform='translateY(0)';});
+  document.body.style.overflow='hidden';
+  const mapEl=document.getElementById('map');
+  if(mapEl&&mapInstance){
+    mapEl.style.height='35vh';
+    mapInstance.height(Math.floor(window.innerHeight*0.35));
+  }
+}
+
+function closeMapBottomSheet(){
+  const sheet=document.getElementById('mapBottomSheet');
+  const overlay=document.getElementById('mapBottomSheetOverlay');
+  if(!sheet) return;
+  sheet.style.transform='translateY(100%)';
+  if(overlay) overlay.style.display='none';
+  document.body.style.overflow='';
+  setTimeout(()=>{sheet.style.display='none';},300);
+  const mapEl=document.getElementById('map');
+  if(mapEl&&mapInstance){
+    mapEl.style.height='';
+    mapInstance.height(window.innerHeight-62);
+  }
+}
+
 function updateMapPanel(d){
+  const html=buildPanelHTML(d)+(buildMapPanelHDXSection(d.country)||'');
+  if(isMobile()){
+    openMapBottomSheet(html);
+    return;
+  }
   const el=document.getElementById('mapPanel');
   if(!el) return;
-  el.innerHTML=buildPanelHTML(d);
-  const hdxSection=buildMapPanelHDXSection(d.country);
-  if(hdxSection) el.innerHTML+=hdxSection;
+  el.innerHTML=html;
   anime({targets:'#mapPanel',opacity:[.5,1],translateX:[10,0],duration:300,easing:'easeOutCubic'});
 }
 function filterMapByPhase(phase, btn){
@@ -1583,14 +1649,19 @@ function selectMapCountry(idx){
 }
 
 function showNoCrisisPanel(c){
-  const el=document.getElementById('mapPanel');
-  if(!el) return;
-  el.innerHTML='<div style="padding:14px;background:var(--green-light);border:1px solid #95d5b2;border-radius:2px;margin-bottom:14px;">'
+  const html='<div style="padding:14px;background:var(--green-light);border:1px solid #95d5b2;border-radius:2px;margin-bottom:14px;">'
     +'<div style="font-family:\'IBM Plex Mono\',monospace;font-size:.52rem;letter-spacing:.12em;text-transform:uppercase;color:var(--green-dark);margin-bottom:4px;">No Active Crisis Alert</div>'
     +'<div style="font-family:\'Playfair Display\',serif;font-weight:700;font-size:1.25rem;color:var(--green-dark);">'+c.name+'</div>'
     +'<div style="font-family:\'IBM Plex Mono\',monospace;font-size:.56rem;color:var(--green-mid);margin-top:3px;">'+c.region+'</div>'
     +'</div>'
     +'<p style="font-family:\'Source Serif 4\',serif;font-size:.83rem;color:var(--gray-700);line-height:1.65;">This country is not currently classified at IPC Phase 2+ in the tracked crisis dataset. No active humanitarian food security emergency is on record.</p>';
+  if(isMobile()){
+    openMapBottomSheet(html);
+    return;
+  }
+  const el=document.getElementById('mapPanel');
+  if(!el) return;
+  el.innerHTML=html;
   anime({targets:'#mapPanel',opacity:[.5,1],translateX:[10,0],duration:300,easing:'easeOutCubic'});
 }
 
@@ -2695,9 +2766,9 @@ function initAbout(){
   h+='<div style="margin-bottom:48px;padding:32px;background:var(--white);border:var(--border);">'
     +'<h2 style="'+playfair+'font-weight:700;font-size:1.5rem;margin-bottom:16px;">World Bank Open Data</h2>'
     +'<p style="'+serif+'font-size:.95rem;line-height:1.75;'+gray7+'margin-bottom:14px;">Four World Bank indicators are fetched for each crisis country via the World Bank Open Data API:</p>'
-    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">'
-    +wbIndicators.map(([code,desc])=>'<div style="padding:10px;background:var(--gray-100);border-radius:4px;display:flex;gap:10px;align-items:start;">'
-      +'<code style="'+mono+'font-size:.58rem;color:var(--blue-mid);white-space:nowrap;">'+code+'</code>'
+    +'<div style="display:flex;flex-direction:column;gap:8px;">'
+    +wbIndicators.map(([code,desc])=>'<div style="padding:10px;background:var(--gray-100);border-radius:4px;">'
+      +'<code style="'+mono+'font-size:.58rem;color:var(--blue-mid);display:block;margin-bottom:4px;">'+code+'</code>'
       +'<div style="'+serif+'font-size:.8rem;'+gray7+'">'+desc+'</div>'
       +'</div>').join('')
     +'</div></div>';
