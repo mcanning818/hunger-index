@@ -107,7 +107,7 @@ run('Category 3 — HTML Element IDs', {
   'heroNum':          () => hasId('heroNum'),
   'liveTime':         () => hasId('liveTime'),
   'updateFlash':      () => hasId('updateFlash'),
-  'newsFeed':         () => hasId('newsFeed'),
+  'newsArticlesContainer': () => hasId('newsArticlesContainer') || html.includes("id='newsArticlesContainer'") || html.includes('"newsArticlesContainer"'),
   'countryListItems': () => hasId('countryListItems'),
   'profileDetail':    () => hasId('profileDetail'),
 });
@@ -122,7 +122,7 @@ run('Category 4 — JavaScript Functions', {
   // Data render
   'renderCrisisCards':   () => hasFn('renderCrisisCards'),
   'renderSidebarNews':   () => hasFn('renderSidebarNews'),
-  'renderNews':          () => hasFn('renderNews'),
+  'renderNewsArticles':  () => hasFn('renderNewsArticles'),
   'filterNews':          () => hasFn('filterNews'),
   'renderCountryList':   () => hasFn('renderCountryList'),
   'selectCountry':       () => hasFn('selectCountry'),
@@ -153,6 +153,12 @@ run('Category 4 — JavaScript Functions', {
   'showTrendsLoadingState':  () => hasFn('showTrendsLoadingState'),
   'ensureCanvas':            () => hasFn('ensureCanvas'),
   'onHDXDataReady':          () => hasFn('onHDXDataReady'),
+  // News pagination & filters
+  'fetchLiveNews':       () => hasFn('fetchLiveNews'),
+  'loadMoreNews':        () => hasFn('loadMoreNews'),
+  'setNewsCountryFilter':() => hasFn('setNewsCountryFilter'),
+  'setNewsFormatFilter': () => hasFn('setNewsFormatFilter'),
+  'initNewsPage':        () => hasFn('initNewsPage'),
   // Feedback
   'toggleFeedbackModal': () => hasFn('toggleFeedbackModal'),
 });

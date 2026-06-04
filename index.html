@@ -297,6 +297,10 @@ a.news-article:active{opacity:.85;}
   [style*="max-width:860px"]{max-width:100%!important;padding-left:16px!important;padding-right:16px!important;}
   [style*="min-width:140px"]{min-width:unset!important;}
   #page-map{overflow:hidden;}
+  #page-news>div{padding:72px 16px 32px!important;}
+  .news-country-chip,.news-format-chip{font-size:.48rem!important;padding:4px 8px!important;}
+  #newsArticlesContainer a{padding:14px 16px!important;}
+  #newsLoadMoreBtn{width:100%!important;max-width:300px!important;}
 }
 </style>
 </head>
@@ -524,21 +528,7 @@ a.news-article:active{opacity:.85;}
   </div>
 </div>
 
-<div id="page-news" class="page">
-  <div class="news-layout">
-    <h1 class="page-title">News & Alerts</h1>
-    <div class="page-subtitle">Alerts &amp; Situation Reports · WFP · FAO · GRFC · ReliefWeb · <span id="newsUpdateLabel">Updated on load</span><span id="newsStatusTag" class="news-status-tag" style="display:none;">⚠ Displaying sample alerts</span></div>
-    <div class="news-filters">
-      <button class="filter-btn active" onclick="filterNews('all',this)">All Alerts</button>
-      <button class="filter-btn" onclick="filterNews('famine',this)">Famine</button>
-      <button class="filter-btn" onclick="filterNews('emergency',this)">Emergency</button>
-      <button class="filter-btn" onclick="filterNews('africa',this)">Africa</button>
-      <button class="filter-btn" onclick="filterNews('middleeast',this)">Middle East</button>
-      <button class="filter-btn" onclick="filterNews('asia',this)">Asia</button>
-    </div>
-    <div id="newsFeed"><div class="empty-state">Loading alerts...</div></div>
-  </div>
-</div>
+<div id="page-news" class="page"></div>
 
 <div id="page-profiles" class="page" style="padding-top:62px;">
   <div class="profiles-layout">
@@ -788,6 +778,9 @@ let mapInstance=null, currentFilter='all', mapMarkers=[];
 let WFP_DATA={}, WORLDBANK_DATA={}, UNHCR_DATA={}, HDX_DATA={}, IPC_DATA={};
 let _mapSearchMatches=[];
 let trendsInitialized=false;
+let newsInitialized=false;
+let newsCurrentOffset=0, newsPageSize=20, newsCurrentCountry='all', newsCurrentFormat='all';
+let newsTotalCount=0, newsArticles=[], newsLoading=false;
 let trendsSelectedCountry='Sudan';
 let trendsCompareMode=false;
 let trendsCompareCountries=['Sudan'];
@@ -894,6 +887,33 @@ const STATIC_HDX_DATA=(()=>{
 const apiStatus={wfp:null, news:null}; // null=unknown, true=live, false=failed
 let lastLiveUpdateTs=null;
 
+const NEWS_COUNTRY_OPTIONS=[
+  {label:'All Countries',value:'all'},
+  {label:'Sudan',value:'SDN'},{label:'Gaza Strip',value:'PSE'},
+  {label:'South Sudan',value:'SSD'},{label:'Yemen',value:'YEM'},
+  {label:'Haiti',value:'HTI'},{label:'DRC',value:'COD'},
+  {label:'Afghanistan',value:'AFG'},{label:'Ethiopia',value:'ETH'},
+  {label:'Mali',value:'MLI'},{label:'Somalia',value:'SOM'},
+  {label:'Myanmar',value:'MMR'},{label:'Syria',value:'SYR'},
+  {label:'Nigeria',value:'NGA'},{label:'Zimbabwe',value:'ZWE'},
+  {label:'Cameroon',value:'CMR'},{label:'Chad',value:'TCD'},
+  {label:'Kenya',value:'KEN'},{label:'Burkina Faso',value:'BFA'},
+  {label:'Lebanon',value:'LBN'},{label:'Colombia',value:'COL'},
+  {label:'Mozambique',value:'MOZ'},{label:'Tajikistan',value:'TJK'},
+  {label:'Guatemala',value:'GTM'},{label:'Burundi',value:'BDI'},
+];
+
+const NEWS_FORMAT_OPTIONS=[
+  {label:'All Types',value:'all'},
+  {label:'Situation Report',value:'Situation Report'},
+  {label:'News & Press Release',value:'News and Press Release'},
+  {label:'Assessment',value:'Assessment'},
+  {label:'Analysis',value:'Analysis'},
+  {label:'Map',value:'Map'},
+  {label:'Infographic',value:'Infographic'},
+  {label:'Appeal',value:'Appeal'},
+];
+
 // Static news fallback (used when all live sources fail)
 const STATIC_NEWS_FALLBACK=[
   {source:'WFP',title:'Sudan remains world\'s worst humanitarian crisis as famine spreads to 20 areas',body:'Nearly 34 million people — 65% of Sudan\'s population — need urgent humanitarian assistance. Famine conditions confirmed in Al Fasher and Kadugli, with risk of famine in 20 additional areas. WFP requires $610 million to continue operations through August 2026.',date:'April 15, 2026',tags:['famine','africa'],url:'https://www.wfp.org/emergencies/sudan'},
@@ -925,7 +945,7 @@ window.addEventListener('load',()=>{
       complete:()=>{
         document.getElementById('loadingOverlay').style.display='none';
         initHome(); initTicker(); startLiveClock(); startDataRefresh(); startLiveDataRefresh();
-        renderNews('all'); fetchAllExternalData();
+        fetchAllExternalData();
         ['stat1','stat2','stat3','stat4'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.opacity='0.4';});
         fetchAllHDXData(); fetchAllIPCData();
       }
@@ -954,7 +974,7 @@ function navigate(page){
       showTrendsLoadingState();
     }
   }
-  if(page==='news') renderNews(currentFilter);
+  if(page==='news'){ if(!newsInitialized){ newsInitialized=true; initNewsPage(); } }
   if(page==='profiles') renderCountryList();
   if(page==='about') initAbout();
   anime({targets:'#page-'+page,opacity:[0.7,1],translateY:[8,0],duration:400,easing:'easeOutCubic'});
@@ -1050,11 +1070,12 @@ function renderCrisisCards(){
 }
 
 function renderSidebarNews(){
-  document.getElementById('sidebarNews').innerHTML=NEWS_DATA.slice(0,5).map(n=>`
+  const data=newsArticles.length>0?newsArticles.slice(0,5):NEWS_DATA.slice(0,5);
+  document.getElementById('sidebarNews').innerHTML=data.map(n=>`
     <div class="news-item" onclick="navigate('news')">
       <div class="news-source">${n.source}</div>
       <div class="news-title">${n.title}</div>
-      <div class="news-date">${n.date}</div>
+      <div class="news-date">${n.date||''}</div>
     </div>`).join('');
 }
 
@@ -1268,28 +1289,38 @@ function initCharts(){
   anime({targets:'.chart-card-full',opacity:[0,1],translateY:[18,0],delay:anime.stagger(80),duration:700,easing:'easeOutCubic'});
 }
 
-function renderNews(filter){
-  const filtered=filter==='all'?NEWS_DATA:NEWS_DATA.filter(n=>n.tags.includes(filter));
-  const c=document.getElementById('newsFeed');
-  if(!filtered.length){c.innerHTML='<div class="empty-state">No articles match this filter.</div>';return;}
-  c.innerHTML=filtered.map(n=>`
-    <a class="news-article" href="${n.url||'#'}" target="_blank" rel="noopener noreferrer">
-      <div>
-        <div class="article-source">${n.source}</div>
-        <div class="article-title">${n.title}</div>
-        <div class="article-body">${n.body}</div>
-        <div class="article-tags">${n.tags.map(t=>`<span class="tag">${t}</span>`).join('')}</div>
+function renderNewsArticles(){
+  const container=document.getElementById('newsArticlesContainer');
+  if(!container) return;
+  if(newsArticles.length===0){
+    container.innerHTML='<div style="padding:40px;text-align:center;font-family:\'IBM Plex Mono\',monospace;font-size:.65rem;color:var(--gray-400);letter-spacing:.1em;">NO ARTICLES FOUND FOR THIS FILTER COMBINATION</div>';
+    return;
+  }
+  function fmtColor(fmt){
+    const c={'Situation Report':'var(--ipc4)','News and Press Release':'var(--blue-mid)','Assessment':'var(--ipc3)','Analysis':'#3B6D11','Map':'#854F0B','Appeal':'var(--ipc5)','Infographic':'#185FA5'};
+    return c[fmt]||'var(--gray-500)';
+  }
+  container.innerHTML=newsArticles.map((a,i)=>`
+    <a href="${a.url||'#'}" target="_blank" rel="noopener noreferrer"
+      style="display:block;text-decoration:none;color:inherit;padding:20px 24px;border-bottom:${i<newsArticles.length-1?'var(--border)':'none'};transition:background .15s;cursor:pointer;"
+      onmouseover="this.style.background='var(--gray-100)'" onmouseout="this.style.background='transparent'">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:8px;flex-wrap:wrap;">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:.52rem;font-weight:500;letter-spacing:.1em;text-transform:uppercase;background:var(--ink);color:var(--white);padding:2px 7px;border-radius:2px;">${a.source}</span>
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:.52rem;letter-spacing:.08em;text-transform:uppercase;color:${fmtColor(a.format)};border:1px solid ${fmtColor(a.format)};padding:2px 7px;border-radius:2px;">${a.format}</span>
+          ${a.country?`<span style="font-family:'IBM Plex Mono',monospace;font-size:.52rem;letter-spacing:.08em;text-transform:uppercase;color:var(--gray-500);">${a.country}</span>`:''}
+        </div>
+        <span style="font-family:'IBM Plex Mono',monospace;font-size:.52rem;color:var(--gray-400);white-space:nowrap;flex-shrink:0;">${a.date}</span>
       </div>
-      <div class="article-date">${n.date}</div>
+      <div style="font-family:'Playfair Display',serif;font-weight:700;font-size:1rem;line-height:1.4;color:var(--ink);margin-bottom:8px;">${a.title}</div>
+      ${a.excerpt?`<div style="font-family:'Source Serif 4',serif;font-size:.85rem;line-height:1.6;color:var(--gray-600);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;">${a.excerpt}</div>`:''}
+      <div style="margin-top:10px;font-family:'IBM Plex Mono',monospace;font-size:.55rem;letter-spacing:.1em;text-transform:uppercase;color:var(--blue-mid);">Read full report ↗</div>
     </a>`).join('');
-  anime({targets:'.news-article',opacity:[0,1],translateY:[8,0],delay:anime.stagger(60),duration:400,easing:'easeOutCubic'});
 }
 
 function filterNews(tag,btn){
-  currentFilter=tag;
-  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active');
-  renderNews(tag);
+  // Legacy — kept for any residual calls
+  renderNewsArticles();
 }
 
 function renderCountryList(query=''){
@@ -1722,72 +1753,145 @@ async function fetchLiveHungerData(){
   apiStatus.wfp='static'; updateDisclaimer();
 }
 
-async function fetchLiveNews(){
-  console.log('[NEWS] Fetching live alerts…');
+async function fetchLiveNews(append=false){
+  if(newsLoading) return;
+  newsLoading=true;
+  const loadMoreBtn=document.getElementById('newsLoadMoreBtn');
+  if(loadMoreBtn){ loadMoreBtn.textContent='Loading…'; loadMoreBtn.disabled=true; }
 
-  function sanitizeNewsItems(items){
-    return items
-      .filter(item=>item.title&&item.title.trim().length>10)
-      .map(item=>({
-        ...item,
-        body:(item.body&&item.body.length>20)?item.body:'See full report on ReliefWeb.',
-        source:item.source||'ReliefWeb',
-        tags:(item.tags&&item.tags.length>0)?item.tags.filter(t=>t&&t.length>0):['emergency']
-      }))
-      .slice(0,12);
-  }
+  const params=new URLSearchParams({
+    offset:newsCurrentOffset, limit:newsPageSize,
+    country:newsCurrentCountry, format:newsCurrentFormat
+  });
 
-  function tagFromTitle(title){
-    const t=title.toLowerCase();
-    const tags=[];
-    if(/famine|ipc.5/.test(t)) tags.push('famine');
-    if(/emergency|ipc.4/.test(t)) tags.push('emergency');
-    if(/africa|sudan|somalia|ethiopia|nigeria|drc|kenya|chad|cameroon|zimbabwe|mozambique|burundi|south.sudan/.test(t)) tags.push('africa');
-    if(/gaza|yemen|syria|lebanon|middle.east/.test(t)) tags.push('middleeast');
-    if(/afghanistan|myanmar|tajikistan|asia/.test(t)) tags.push('asia');
-    return tags.length?tags:['emergency'];
-  }
-
-  function pushNews(items){
-    NEWS_DATA.length=0;
-    items.forEach(item=>NEWS_DATA.push(item));
-    if(NEWS_DATA.length<6) STATIC_NEWS_FALLBACK.forEach(f=>{if(NEWS_DATA.length<8)NEWS_DATA.push(f);});
-    const newsPage=document.getElementById('page-news');
-    if(newsPage&&newsPage.classList.contains('active')) renderNews(currentFilter);
-    renderSidebarNews();
-  }
-
-  // Attempt 1: Netlify Function proxy → ReliefWeb (server-side, no CORS restrictions)
-  // Routes to /.netlify/functions/news via netlify.toml redirect
   try {
-    const r=await fetchWithTimeout('/api/news',{},12000);
+    const r=await fetch(`/api/news?${params}`,{signal:AbortSignal.timeout(20000)});
     if(!r.ok) throw new Error('HTTP '+r.status);
-    const d=await r.json();
-    if(!d.items||d.items.length===0) throw new Error('no articles returned');
-    const items=sanitizeNewsItems(d.items);
-    if(items.length===0) throw new Error('no valid items after sanitize');
-    pushNews(items);
-    console.log('[NEWS] ✓ Netlify function (ReliefWeb):',NEWS_DATA.length,'items');
-    apiStatus.news=true; lastLiveUpdateTs=Date.now(); updateDisclaimer(); flashUpdate();
-    return;
-  } catch(err){
-    console.warn('[NEWS] Netlify function failed:',err.message);
-  }
+    const data=await r.json();
 
-  // All sources failed
-  console.warn('[NEWS] ✗ All news sources failed — using static NEWS_DATA');
-  apiStatus.news=false; updateDisclaimer();
+    if(data.status==='live'&&data.articles&&data.articles.length>0){
+      newsTotalCount=data.total||0;
+      newsArticles=append?[...newsArticles,...data.articles]:data.articles;
+      renderNewsArticles();
+      updateNewsLoadMore(data.hasMore);
+      updateNewsCount();
+      renderSidebarNews();
+      apiStatus.news=true; lastLiveUpdateTs=Date.now(); updateDisclaimer(); flashUpdate();
+      console.log('[NEWS] Loaded',newsArticles.length,'/',newsTotalCount,'articles');
+    } else {
+      if(!append){
+        newsArticles=STATIC_NEWS_FALLBACK.map(n=>({
+          title:n.title, excerpt:n.body, source:n.source, date:n.date, url:n.url||'#',
+          format:'Situation Report', country:'', countryIso3:''
+        }));
+        renderNewsArticles();
+        updateNewsLoadMore(false);
+        updateNewsCount();
+        renderSidebarNews();
+        apiStatus.news=false; updateDisclaimer();
+      }
+    }
+  } catch(err){
+    console.warn('[NEWS] Fetch failed:',err.message);
+    if(!append){
+      newsArticles=STATIC_NEWS_FALLBACK.map(n=>({
+        title:n.title, excerpt:n.body, source:n.source, date:n.date, url:n.url||'#',
+        format:'Situation Report', country:'', countryIso3:''
+      }));
+      renderNewsArticles();
+      updateNewsLoadMore(false);
+      updateNewsCount();
+      renderSidebarNews();
+      apiStatus.news=false; updateDisclaimer();
+    }
+  } finally {
+    newsLoading=false;
+    if(loadMoreBtn){ loadMoreBtn.textContent='Load More Articles'; loadMoreBtn.disabled=false; }
+  }
+}
+
+function loadMoreNews(){ newsCurrentOffset+=newsPageSize; fetchLiveNews(true); }
+
+function updateNewsCount(){
+  const el=document.getElementById('newsArticleCount');
+  if(el) el.textContent=newsTotalCount>0?`Showing ${newsArticles.length} of ${newsTotalCount} articles`:`${newsArticles.length} articles`;
+}
+
+function updateNewsLoadMore(hasMore){
+  const btn=document.getElementById('newsLoadMoreBtn');
+  if(btn) btn.style.display=hasMore?'block':'none';
+}
+
+function setNewsCountryFilter(value){
+  newsCurrentCountry=value; newsCurrentOffset=0; newsArticles=[];
+  document.querySelectorAll('.news-country-chip').forEach(chip=>{
+    const active=chip.dataset.value===value;
+    chip.style.background=active?'var(--ink)':'transparent';
+    chip.style.color=active?'var(--white)':'var(--gray-500)';
+    chip.style.borderColor=active?'var(--ink)':'var(--gray-300)';
+  });
+  fetchLiveNews(false);
+}
+
+function setNewsFormatFilter(value){
+  newsCurrentFormat=value; newsCurrentOffset=0; newsArticles=[];
+  document.querySelectorAll('.news-format-chip').forEach(chip=>{
+    const active=chip.dataset.value===value;
+    chip.style.background=active?'var(--blue-mid)':'transparent';
+    chip.style.color=active?'var(--white)':'var(--gray-500)';
+    chip.style.borderColor=active?'var(--blue-mid)':'var(--gray-300)';
+  });
+  fetchLiveNews(false);
+}
+
+function initNewsPage(){
+  const page=document.getElementById('page-news');
+  if(!page) return;
+  page.innerHTML=`
+    <div style="padding:80px 48px 48px;max-width:900px;margin:0 auto;">
+      <div style="margin-bottom:24px;">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:.58rem;letter-spacing:.2em;text-transform:uppercase;color:var(--gray-500);margin-bottom:8px;">News & Alerts</div>
+        <h1 style="font-family:'Playfair Display',serif;font-weight:900;font-size:2rem;line-height:1.1;margin-bottom:8px;">Humanitarian Situation Reports</h1>
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+          <div id="newsSourceBadge" style="font-family:'IBM Plex Mono',monospace;font-size:.55rem;letter-spacing:.1em;text-transform:uppercase;color:var(--green-mid);">● Live · ReliefWeb</div>
+          <div id="newsArticleCount" style="font-family:'IBM Plex Mono',monospace;font-size:.55rem;color:var(--gray-400);"></div>
+        </div>
+      </div>
+      <div style="background:var(--white);border:var(--border);padding:16px 20px;margin-bottom:24px;">
+        <div style="margin-bottom:14px;">
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:.52rem;letter-spacing:.12em;text-transform:uppercase;color:var(--gray-500);margin-bottom:8px;">Filter by Country</div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;">
+            ${NEWS_COUNTRY_OPTIONS.map((opt,i)=>`<button class="news-country-chip" data-value="${opt.value}" onclick="setNewsCountryFilter('${opt.value}')" style="font-family:'IBM Plex Mono',monospace;font-size:.52rem;letter-spacing:.06em;text-transform:uppercase;padding:4px 10px;border:1px solid ${i===0?'var(--ink)':'var(--gray-300)'};background:${i===0?'var(--ink)':'transparent'};color:${i===0?'var(--white)':'var(--gray-500)'};cursor:pointer;border-radius:2px;transition:all .15s;white-space:nowrap;">${opt.label}</button>`).join('')}
+          </div>
+        </div>
+        <div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:.52rem;letter-spacing:.12em;text-transform:uppercase;color:var(--gray-500);margin-bottom:8px;">Filter by Type</div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;">
+            ${NEWS_FORMAT_OPTIONS.map((opt,i)=>`<button class="news-format-chip" data-value="${opt.value}" onclick="setNewsFormatFilter('${opt.value}')" style="font-family:'IBM Plex Mono',monospace;font-size:.52rem;letter-spacing:.06em;text-transform:uppercase;padding:4px 10px;border:1px solid ${i===0?'var(--blue-mid)':'var(--gray-300)'};background:${i===0?'var(--blue-mid)':'transparent'};color:${i===0?'var(--white)':'var(--gray-500)'};cursor:pointer;border-radius:2px;transition:all .15s;white-space:nowrap;">${opt.label}</button>`).join('')}
+          </div>
+        </div>
+      </div>
+      <div id="newsArticlesContainer" style="display:flex;flex-direction:column;gap:0;border:var(--border);">
+        <div style="padding:40px;text-align:center;font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--gray-400);letter-spacing:.1em;">LOADING SITUATION REPORTS…</div>
+      </div>
+      <div style="text-align:center;margin-top:24px;margin-bottom:40px;">
+        <button id="newsLoadMoreBtn" onclick="loadMoreNews()" style="display:none;font-family:'IBM Plex Mono',monospace;font-size:.6rem;letter-spacing:.12em;text-transform:uppercase;padding:12px 32px;background:none;border:1px solid var(--ink);color:var(--ink);cursor:pointer;transition:all .2s;" onmouseover="this.style.background='var(--ink)';this.style.color='var(--white)'" onmouseout="this.style.background='none';this.style.color='var(--ink)'">Load More Articles</button>
+      </div>
+    </div>`;
+  fetchLiveNews(false);
 }
 
 function startLiveDataRefresh(){
-  // Initial fetch on load
   fetchLiveHungerData();
-  fetchLiveNews();
   updateDataTimestamp();
 
-  // Refresh news every 2 minutes
-  setInterval(async()=>{
-    await fetchLiveNews();
+  // Refresh news every 2 minutes — only when news page is visible
+  setInterval(()=>{
+    const newsPage=document.getElementById('page-news');
+    if(newsPage&&newsPage.classList.contains('active')&&!newsLoading){
+      newsCurrentOffset=0;
+      fetchLiveNews(false);
+    }
     updateDataTimestamp();
   }, 2*60*1000);
 

@@ -3,129 +3,152 @@ exports.config = { timeout: 26 };
 exports.handler = async function(event, context) {
   const headers = {
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type, Accept',
+    'Access-Control-Allow-Headers': 'Content-Type',
     'Access-Control-Allow-Methods': 'GET, OPTIONS',
     'Content-Type': 'application/json'
   };
+  if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers, body: '' };
 
-  if (event.httpMethod === 'OPTIONS') {
-    return { statusCode: 200, headers, body: '' };
+  const appname = 'thehungerindex-TlD3aiDqg3-2026';
+
+  const {
+    offset = '0',
+    limit = '20',
+    country = '',
+    format = '',
+    dateFrom = '',
+  } = event.queryStringParameters || {};
+
+  const conditions = [];
+
+  conditions.push({
+    field: 'source.shortname',
+    value: ['WFP', 'OCHA', 'FAO', 'FEWS NET', 'IPC', 'MSF', 'IRC',
+            'Save the Children', 'Oxfam', 'UNICEF', 'WHO', 'UNHCR',
+            'NRC', 'Mercy Corps', 'ACF', 'WVI', 'ICRC'],
+    operator: 'OR'
+  });
+
+  if (country && country !== 'all') {
+    conditions.push({
+      field: 'country.iso3',
+      value: [country.toUpperCase()],
+      operator: 'OR'
+    });
+  } else {
+    conditions.push({
+      field: 'country.iso3',
+      value: [
+        'SDN','SSD','PSE','YEM','HTI','COD','AFG','ETH','MLI',
+        'SOM','MMR','SYR','NGA','ZWE','CMR','TCD','KEN','BFA',
+        'LBN','COL','MOZ','TJK','GTM','BDI'
+      ],
+      operator: 'OR'
+    });
   }
 
-  const _errors = [];
-
-  // ATTEMPT 1: ReliefWeb v2 JSON API — filter by known org shortnames (returns results reliably)
-  try {
-    const rwBody = JSON.stringify({
-      limit: 20,
-      sort: ['date.created:desc'],
-      fields: { include: ['title', 'date.created', 'source', 'country', 'body', 'url'] },
-      filter: {
-        operator: 'OR',
-        conditions: [
-          { field: 'source.shortname', value: 'WFP' },
-          { field: 'source.shortname', value: 'FEWS NET' },
-          { field: 'source.shortname', value: 'OCHA' },
-          { field: 'source.shortname', value: 'FAO' },
-          { field: 'source.shortname', value: 'IPC' }
-        ]
-      }
+  if (format && format !== 'all') {
+    conditions.push({
+      field: 'format.name',
+      value: [format],
+      operator: 'OR'
     });
-
-    console.log('[NEWS] Appname being used: thehungerindex-TlD3aiDqg3-2026');
-    const r = await fetch('https://api.reliefweb.int/v2/reports?appname=thehungerindex-TlD3aiDqg3-2026&limit=20', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'User-Agent': 'HungerIndex/1.0 (thehungerindex.netlify.app)' },
-      body: rwBody,
-      signal: AbortSignal.timeout(25000)
-    });
-
-    console.log('[NEWS] ReliefWeb response status:', r.status);
-    if (!r.ok) {
-      const errBody = await r.text().catch(() => '');
-      throw new Error('ReliefWeb HTTP ' + r.status + ' — ' + errBody.slice(0, 300));
-    }
-    const data = await r.json();
-
-    const items = (data.data || []).map(item => {
-      const f = item.fields || {};
-      const country = (f.country || [])[0]?.name || '';
-      const source = (f.source || [])[0]?.name || 'ReliefWeb';
-      const dateStr = (f.date && f.date.created) || f['date.created'] || '';
-      let fmtDate = dateStr;
-      try { fmtDate = new Date(dateStr).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }); } catch(_) {}
-      const rawBody = (f.body || '').replace(/<[^>]+>/g, '').trim();
-      const bodyText = rawBody.slice(0, 200) || 'See full report on ReliefWeb.';
-      const title = (f.title || '').toLowerCase();
-      const cl = country.toLowerCase();
-      const tags = [];
-      if (/famine|ipc.5/.test(title)) tags.push('famine');
-      if (/emergency|crisis/.test(title)) tags.push('emergency');
-      if (/africa|sudan|somalia|ethiopia|nigeria|drc|kenya|chad|zimbabwe|mozambique/.test(title + cl)) tags.push('africa');
-      if (/gaza|yemen|syria|lebanon|middle.east/.test(title + cl)) tags.push('middleeast');
-      if (/afghanistan|myanmar|asia/.test(title + cl)) tags.push('asia');
-      if (tags.length === 0) tags.push('emergency');
-      return { source, title: f.title || 'Untitled', body: bodyText, date: fmtDate, tags, url: f.url || 'https://reliefweb.int' };
-    }).filter(i => i.title.length > 10);
-
-    if (items.length > 0) {
-      console.log('[NEWS] ReliefWeb JSON: ' + items.length + ' articles');
-      return { statusCode: 200, headers, body: JSON.stringify({ status: 'live', source: 'reliefweb', items, count: items.length, timestamp: new Date().toISOString() }) };
-    }
-    throw new Error('ReliefWeb returned 0 items');
-  } catch(err) {
-    _errors.push('json: ' + err.message);
-    console.warn('[NEWS] ReliefWeb JSON failed (' + err.message + ') — trying RSS');
   }
 
-  // ATTEMPT 2: ReliefWeb RSS — public feed, no auth, always available
-  try {
-    const rssUrl = 'https://reliefweb.int/updates/rss.xml?primary_country=0&report_type=0&source=1503,1741,1502,6,4592';
-    const r = await fetch(rssUrl, {
-      headers: { 'Accept': 'application/rss+xml, application/xml, text/xml', 'User-Agent': 'HungerIndex/1.0 (thehungerindex.netlify.app)' },
-      signal: AbortSignal.timeout(20000)
-    });
+  const sixMonthsAgo = dateFrom || (() => {
+    const d = new Date();
+    d.setMonth(d.getMonth() - 6);
+    return d.toISOString().slice(0, 10);
+  })();
 
-    if (!r.ok) throw new Error('RSS HTTP ' + r.status);
-    const xml = await r.text();
+  conditions.push({
+    field: 'date.created',
+    value: { from: sixMonthsAgo },
+    operator: 'AND'
+  });
 
-    // Parse <item> blocks from RSS XML without a DOM parser
-    const itemBlocks = xml.match(/<item>([\s\S]*?)<\/item>/g) || [];
-    const items = itemBlocks.map(block => {
-      const get = tag => { const m = block.match(new RegExp('<' + tag + '[^>]*><!\\[CDATA\\[([\\s\\S]*?)\\]\\]></' + tag + '>|<' + tag + '[^>]*>([^<]*)</' + tag + '>')); return m ? (m[1] || m[2] || '').trim() : ''; };
-      const title = get('title');
-      const link = get('link') || get('guid');
-      const pubDate = get('pubDate');
-      const description = get('description').replace(/<[^>]+>/g, '').trim().slice(0, 200) || 'See full report on ReliefWeb.';
-      const source = get('dc:source') || get('source') || 'ReliefWeb';
-      let fmtDate = pubDate;
-      try { fmtDate = new Date(pubDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }); } catch(_) {}
-      const t = title.toLowerCase();
-      const tags = [];
-      if (/famine|ipc.5/.test(t)) tags.push('famine');
-      if (/emergency|crisis/.test(t)) tags.push('emergency');
-      if (/africa|sudan|somalia|ethiopia|nigeria|drc|kenya|chad|zimbabwe|mozambique/.test(t)) tags.push('africa');
-      if (/gaza|yemen|syria|lebanon|middle.east/.test(t)) tags.push('middleeast');
-      if (/afghanistan|myanmar|asia/.test(t)) tags.push('asia');
-      if (tags.length === 0) tags.push('emergency');
-      return { source, title, body: description, date: fmtDate, tags, url: link };
-    }).filter(i => i.title && i.title.length > 10).slice(0, 20);
-
-    if (items.length > 0) {
-      console.log('[NEWS] ReliefWeb RSS: ' + items.length + ' articles');
-      return { statusCode: 200, headers, body: JSON.stringify({ status: 'live', source: 'reliefweb-rss', items, count: items.length, timestamp: new Date().toISOString() }) };
+  const body = {
+    appname,
+    limit: Math.min(parseInt(limit) || 20, 50),
+    offset: parseInt(offset) || 0,
+    sort: ['date.created:desc'],
+    fields: {
+      include: [
+        'title', 'date.created', 'source.shortname', 'source.name',
+        'country.name', 'country.iso3', 'format.name',
+        'body-html', 'url', 'file'
+      ]
+    },
+    filter: {
+      operator: 'AND',
+      conditions
     }
-    throw new Error('RSS returned 0 items');
-  } catch(err) {
-    _errors.push('rss: ' + err.message);
-    console.warn('[NEWS] ReliefWeb RSS failed: ' + err.message);
-  }
-
-  // ATTEMPT 3: Static fallback
-  console.warn('[NEWS] All sources failed — errors:', JSON.stringify(_errors));
-  return {
-    statusCode: 200,
-    headers,
-    body: JSON.stringify({ status: 'unavailable', items: [], errors: _errors, timestamp: new Date().toISOString() })
   };
+
+  console.log(`[NEWS] offset:${offset} limit:${limit} country:${country||'all'} format:${format||'all'}`);
+
+  try {
+    const r = await fetch('https://api.reliefweb.int/v2/reports?appname=' + appname, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(15000)
+    });
+
+    if (!r.ok) throw new Error(`ReliefWeb HTTP ${r.status} — ${await r.text()}`);
+
+    const data = await r.json();
+    const articles = (data.data || []).map(item => {
+      const f = item.fields || {};
+      const rawBody = (f['body-html'] || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+      const excerpt = rawBody.length > 280 ? rawBody.slice(0, 280) + '…' : rawBody;
+
+      return {
+        id: item.id,
+        title: f.title || 'Untitled',
+        excerpt,
+        source: (f.source || [{}])[0]?.shortname || 'ReliefWeb',
+        sourceFull: (f.source || [{}])[0]?.name || 'ReliefWeb',
+        country: (f.country || [{}])[0]?.name || '',
+        countryIso3: (f.country || [{}])[0]?.iso3 || '',
+        format: (f.format || [{}])[0]?.name || 'News',
+        date: (f.date && f.date.created) ? f.date.created.slice(0, 10) : (f['date.created'] ? f['date.created'].slice(0, 10) : ''),
+        url: f.url || item.href || '',
+      };
+    });
+
+    const totalCount = data.totalCount || (data.total && data.total.value) || articles.length;
+
+    console.log(`[NEWS] ${articles.length} articles (total: ${totalCount})`);
+
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify({
+        status: 'live',
+        source: 'reliefweb',
+        articles,
+        total: totalCount,
+        offset: parseInt(offset),
+        limit: parseInt(limit),
+        hasMore: parseInt(offset) + articles.length < totalCount,
+        timestamp: new Date().toISOString()
+      })
+    };
+
+  } catch (err) {
+    console.warn('[NEWS] ReliefWeb failed:', err.message);
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify({
+        status: 'unavailable',
+        error: err.message,
+        articles: [],
+        total: 0,
+        hasMore: false,
+        timestamp: new Date().toISOString()
+      })
+    };
+  }
 };
