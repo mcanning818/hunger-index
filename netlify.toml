@@ -32,6 +32,3 @@
 [dev]
   targetPort = 8888
   autoLaunch = false
-
-[dev.environment]
-  HDX_APP_ID = "dGhlaHVuZ2VyaW5kZXg6bWlrYWhjYW5uaW5nQGdtYWlsLmNvbQ=="
