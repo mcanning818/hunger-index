@@ -418,69 +418,81 @@ nav{position:fixed;top:0;left:0;right:0;z-index:1000;background:var(--white);bor
 
 <div id="page-trends" class="page">
   <div class="trends-layout">
-    <h1 class="page-title">Trends & Analysis</h1>
-    <div class="page-subtitle">Live HDX HAPI data · WFP / FAO / FEWS NET · Global Hunger Index · 2018–2026</div>
 
-    <!-- Country selector + compare -->
-    <div style="background:var(--white);border:var(--border);padding:20px;margin-bottom:32px;">
-      <div style="font-family:'IBM Plex Mono',monospace;font-size:.55rem;letter-spacing:.15em;text-transform:uppercase;color:var(--gray-500);margin-bottom:10px;">Country Focus</div>
-      <div id="countryChips" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;"></div>
-      <div style="display:flex;align-items:center;gap:12px;">
-        <button id="compareModeBtn" onclick="toggleCompareMode()" style="font-family:'IBM Plex Mono',monospace;font-size:.55rem;letter-spacing:.1em;text-transform:uppercase;padding:6px 14px;background:none;border:1px solid var(--gray-300);color:var(--gray-500);cursor:pointer;border-radius:2px;transition:all .2s;">&#x2295; Compare Countries</button>
-        <div id="compareModeHint" style="display:none;font-family:'IBM Plex Mono',monospace;font-size:.55rem;color:var(--blue-mid);">Select up to 4 countries &middot; Click chips to toggle</div>
-      </div>
+    <!-- Page header -->
+    <div style="margin-bottom:32px;">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:.58rem;letter-spacing:.2em;text-transform:uppercase;color:var(--gray-500);margin-bottom:8px;">Trends &amp; Analysis</div>
+      <h1 style="font-family:'Playfair Display',serif;font-weight:900;font-size:2.4rem;line-height:1.1;">Global Food Security Trends</h1>
+      <p style="font-family:'Source Serif 4',serif;font-size:.95rem;color:var(--gray-600);margin-top:10px;max-width:600px;">Tracking acute hunger, conflict, displacement, and funding across 24 crisis countries. Global overview below &mdash; select a country for deep analysis.</p>
     </div>
 
-    <!-- Chart 1: Conflict-Hunger Correlation (hero) -->
-    <div class="chart-panel" style="margin-bottom:32px;padding:24px;background:var(--white);border:var(--border);border-top:3px solid var(--ipc4);">
-      <div style="font-family:'Playfair Display',serif;font-weight:700;font-size:1.3rem;margin-bottom:4px;">Conflict Events vs. Food Insecurity</div>
-      <div style="font-family:'IBM Plex Mono',monospace;font-size:.55rem;letter-spacing:.1em;text-transform:uppercase;color:var(--gray-500);margin-bottom:8px;">ACLED CONFLICT EVENTS (VIA HDX HAPI) &middot; IPC PHASE 3+ POPULATION</div>
-      <div style="font-family:'Source Serif 4',serif;font-size:.85rem;line-height:1.65;color:var(--gray-600);margin-bottom:16px;max-width:680px;">Research shows a 90&ndash;180 day lag between armed conflict escalation and measurable food insecurity increases. The shaded annotation highlights this relationship.</div>
-      <div style="position:relative;height:300px;"><canvas id="correlationChart"></canvas></div>
-    </div>
+    <!-- ── SECTION 1: GLOBAL OVERVIEW ── -->
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:.58rem;letter-spacing:.18em;text-transform:uppercase;color:var(--gray-400);margin-bottom:16px;padding-bottom:8px;border-bottom:var(--border);">&#9658; Global Overview</div>
 
-    <!-- Chart 2: IPC Phase Trend -->
-    <div class="chart-panel" style="margin-bottom:32px;padding:24px;background:var(--white);border:var(--border);">
-      <div style="font-family:'Playfair Display',serif;font-weight:700;font-size:1.3rem;margin-bottom:4px;">IPC Phase Population Over Time</div>
-      <div style="font-family:'IBM Plex Mono',monospace;font-size:.55rem;letter-spacing:.1em;text-transform:uppercase;color:var(--gray-500);margin-bottom:16px;">PEOPLE IN CRISIS, EMERGENCY &amp; CATASTROPHE &middot; HDX HAPI &middot; MILLIONS</div>
-      <div style="position:relative;height:280px;"><canvas id="ipcTrendChart"></canvas></div>
-    </div>
-
-    <!-- Charts 3 + 4: Two column -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:32px;">
-      <div class="chart-panel" style="padding:24px;background:var(--white);border:var(--border);">
-        <div style="font-family:'Playfair Display',serif;font-weight:700;font-size:1.1rem;margin-bottom:4px;">Food Price Trends</div>
-        <div style="font-family:'IBM Plex Mono',monospace;font-size:.52rem;letter-spacing:.1em;text-transform:uppercase;color:var(--gray-500);margin-bottom:14px;">STAPLE COMMODITIES &middot; WFP VIA HDX HAPI</div>
-        <div style="position:relative;height:240px;"><canvas id="foodPriceChart"></canvas></div>
-      </div>
-      <div class="chart-panel" style="padding:24px;background:var(--white);border:var(--border);">
-        <div style="font-family:'Playfair Display',serif;font-weight:700;font-size:1.1rem;margin-bottom:4px;">Displacement Over Time</div>
-        <div style="font-family:'IBM Plex Mono',monospace;font-size:.52rem;letter-spacing:.1em;text-transform:uppercase;color:var(--gray-500);margin-bottom:14px;">INTERNALLY DISPLACED PERSONS &middot; IOM DTM VIA HDX HAPI</div>
-        <div style="position:relative;height:240px;"><canvas id="displacementChart"></canvas></div>
-      </div>
-    </div>
-
-    <!-- Charts 5 + 6: Two column, static -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:32px;">
-      <div class="chart-panel" style="padding:24px;background:var(--white);border:var(--border);">
-        <div style="font-family:'Playfair Display',serif;font-weight:700;font-size:1.1rem;margin-bottom:4px;">Global Hunger Index Rankings</div>
-        <div style="font-family:'IBM Plex Mono',monospace;font-size:.52rem;letter-spacing:.1em;text-transform:uppercase;color:var(--gray-500);margin-bottom:14px;">GHI 2023 &middot; ALL TRACKED COUNTRIES &middot; WELTHUNGERHILFE</div>
-        <div style="position:relative;height:440px;"><canvas id="ghiChart"></canvas></div>
-      </div>
-      <div class="chart-panel" style="padding:24px;background:var(--white);border:var(--border);">
+    <!-- Regional + GHI side by side -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:24px;">
+      <div style="padding:24px;background:var(--white);border:var(--border);">
         <div style="font-family:'Playfair Display',serif;font-weight:700;font-size:1.1rem;margin-bottom:4px;">Crisis Severity by Region</div>
-        <div style="font-family:'IBM Plex Mono',monospace;font-size:.52rem;letter-spacing:.1em;text-transform:uppercase;color:var(--gray-500);margin-bottom:14px;">IPC PHASE DISTRIBUTION &middot; COUNTRIES BY REGION</div>
-        <div style="position:relative;height:240px;"><canvas id="regionalChart"></canvas></div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:.52rem;letter-spacing:.1em;text-transform:uppercase;color:var(--gray-500);margin-bottom:14px;">IPC PHASE DISTRIBUTION &middot; ALL TRACKED COUNTRIES</div>
+        <div style="position:relative;height:240px;" data-canvas-wrapper="regionalChart"><canvas id="regionalChart"></canvas></div>
+      </div>
+      <div style="padding:24px;background:var(--white);border:var(--border);">
+        <div style="font-family:'Playfair Display',serif;font-weight:700;font-size:1.1rem;margin-bottom:4px;">Global Hunger Index Rankings</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:.52rem;letter-spacing:.1em;text-transform:uppercase;color:var(--gray-500);margin-bottom:14px;">GHI 2023 &middot; WELTHUNGERHILFE &amp; CONCERN WORLDWIDE</div>
+        <div style="position:relative;height:400px;" data-canvas-wrapper="ghiChart"><canvas id="ghiChart"></canvas></div>
       </div>
     </div>
 
-    <!-- Funding chart (preserved) -->
-    <div class="chart-card-full" style="border-top-color:#5e0606;">
+    <!-- Humanitarian funding chart -->
+    <div class="chart-card-full" style="border-top-color:#5e0606;margin-bottom:40px;">
       <div class="chart-title">Humanitarian Funding: Need vs. Delivery</div>
       <div class="chart-meta">WFP annual funding requirements vs. received &middot; billions USD &middot; 2018&ndash;2024</div>
       <canvas id="chartFunding" height="80"></canvas>
-      <div class="chart-insight">The 2023&ndash;2024 funding crisis is the most severe in WFP&rsquo;s history &mdash; only 41 cents of every dollar needed was received in 2024. The $6.1B shortfall directly translates to reduced rations and suspended operations for ~90M people.</div>
+      <div class="chart-insight">From 2018&ndash;2022, WFP funding kept pace with rising needs. In 2023, requirements reached $22.8B but received only $8.6B &mdash; a 62% funding gap. In 2024, WFP received just 41 cents of every dollar needed. The $14B+ shortfall drives suspended operations and reduced rations for tens of millions. Source: WFP Annual Performance Reports.</div>
     </div>
+
+    <!-- ── SECTION 2: COUNTRY ANALYSIS ── -->
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:.58rem;letter-spacing:.18em;text-transform:uppercase;color:var(--gray-400);margin-bottom:16px;padding-bottom:8px;border-bottom:var(--border);">&#9658; Country Analysis</div>
+
+    <!-- Country selector -->
+    <div style="background:var(--white);border:var(--border);padding:20px;margin-bottom:28px;">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:.55rem;letter-spacing:.15em;text-transform:uppercase;color:var(--gray-500);margin-bottom:10px;">Country Focus</div>
+      <div id="countryChips" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;"></div>
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+        <button id="compareModeBtn" onclick="toggleCompareMode()" style="font-family:'IBM Plex Mono',monospace;font-size:.55rem;letter-spacing:.1em;text-transform:uppercase;padding:7px 16px;background:none;border:1px solid var(--gray-300);color:var(--gray-500);cursor:pointer;border-radius:2px;transition:all .2s;">&#x2295; Compare Countries</button>
+        <div id="compareModeHint" style="display:none;font-family:'IBM Plex Mono',monospace;font-size:.55rem;color:var(--blue-mid);">Select up to 4 countries &middot; Charts show overlaid trends</div>
+      </div>
+    </div>
+
+    <!-- Conflict-Hunger Correlation hero chart -->
+    <div style="padding:24px;background:var(--white);border:var(--border);border-top:3px solid var(--ipc4);margin-bottom:24px;">
+      <div style="font-family:'Playfair Display',serif;font-weight:700;font-size:1.3rem;margin-bottom:4px;">Conflict Events vs. Food Insecurity</div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:.55rem;letter-spacing:.1em;text-transform:uppercase;color:var(--gray-500);margin-bottom:8px;">ACLED CONFLICT EVENTS (VIA HDX HAPI) &middot; IPC PHASE 3+ POPULATION &middot; MONTHLY</div>
+      <div style="font-family:'Source Serif 4',serif;font-size:.85rem;line-height:1.65;color:var(--gray-600);margin-bottom:16px;max-width:680px;">Research shows a 90&ndash;180 day lag between armed conflict escalation and measurable food insecurity increases. The shaded annotation highlights this relationship where data is sufficient.</div>
+      <div style="position:relative;height:300px;" data-canvas-wrapper="correlationChart"><canvas id="correlationChart"></canvas></div>
+    </div>
+
+    <!-- IPC Trend + Food Prices side by side -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:24px;">
+      <div style="padding:24px;background:var(--white);border:var(--border);">
+        <div style="font-family:'Playfair Display',serif;font-weight:700;font-size:1.1rem;margin-bottom:4px;">IPC Phase Population Over Time</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:.52rem;letter-spacing:.1em;text-transform:uppercase;color:var(--gray-500);margin-bottom:14px;">PEOPLE IN CRISIS, EMERGENCY &amp; CATASTROPHE &middot; HDX HAPI</div>
+        <div style="position:relative;height:260px;" data-canvas-wrapper="ipcTrendChart"><canvas id="ipcTrendChart"></canvas></div>
+      </div>
+      <div style="padding:24px;background:var(--white);border:var(--border);">
+        <div style="font-family:'Playfair Display',serif;font-weight:700;font-size:1.1rem;margin-bottom:4px;">Food Price Trends</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:.52rem;letter-spacing:.1em;text-transform:uppercase;color:var(--gray-500);margin-bottom:14px;">STAPLE COMMODITIES &middot; WFP VIA HDX HAPI</div>
+        <div style="position:relative;height:260px;" data-canvas-wrapper="foodPriceChart"><canvas id="foodPriceChart"></canvas></div>
+      </div>
+    </div>
+
+    <!-- Displacement chart -->
+    <div style="padding:24px;background:var(--white);border:var(--border);margin-bottom:40px;">
+      <div style="font-family:'Playfair Display',serif;font-weight:700;font-size:1.1rem;margin-bottom:4px;">Displacement Over Time</div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:.52rem;letter-spacing:.1em;text-transform:uppercase;color:var(--gray-500);margin-bottom:14px;">INTERNALLY DISPLACED PERSONS &middot; IOM DTM VIA HDX HAPI</div>
+      <div style="position:relative;height:240px;" data-canvas-wrapper="displacementChart"><canvas id="displacementChart"></canvas></div>
+    </div>
+
   </div>
 </div>
 
@@ -811,7 +823,7 @@ window.addEventListener('load',()=>{
         initHome(); initTicker(); startLiveClock(); startDataRefresh(); startLiveDataRefresh();
         renderNews('all'); fetchAllExternalData();
         ['stat1','stat2','stat3','stat4'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.opacity='0.4';});
-        fetchAllHDXData().then(updateOverviewStats); fetchAllIPCData();
+        fetchAllHDXData(); fetchAllIPCData();
       }
     });
 });
@@ -832,7 +844,11 @@ function navigate(page){
       renderRegionalChart();
       setTimeout(initCharts,100);
     }
-    updateAllTrendsCharts();
+    if(window.hdxDataReady){
+      updateAllTrendsCharts();
+    } else {
+      showTrendsLoadingState();
+    }
   }
   if(page==='news') renderNews(currentFilter);
   if(page==='profiles') renderCountryList();
@@ -1088,16 +1104,19 @@ function initCharts(){
   const gridColor='rgba(0,0,0,0.05)';
   const fundLabels=['2018','2019','2020','2021','2022','2023','2024'];
 
-  // ── Funding gap: stacked bar ─────────────────────────────────────────
+  // ── Funding: grouped bars — Required vs Received ─────────────────────
+  // Source: WFP Annual Performance Reports 2018–2024 (approximate)
+  const fundRequired=[9.1,9.5,10.2,14.2,22.2,22.8,20.0];
+  const fundReceived=[6.4,7.3, 8.4, 9.6,14.5, 8.6, 8.2];
   const fundEl=document.getElementById('chartFunding');
   if(fundEl){
     const fundingAnnotations={
       fundingCrisisLine:{
         type:'line',xMin:'2023',xMax:'2023',
-        borderColor:'rgba(139,0,0,0.4)',borderWidth:1,borderDash:[4,4]
+        borderColor:'rgba(139,0,0,0.35)',borderWidth:1,borderDash:[4,4]
       },
       fundingCrisisLabel:{
-        type:'label',xValue:'2023',yValue:12.5,
+        type:'label',xValue:'2023',yValue:24,
         content:['Funding crisis'],
         backgroundColor:'rgba(139,0,0,0.85)',color:'white',
         font:{size:10,family:"'IBM Plex Mono',monospace"},
@@ -1109,25 +1128,33 @@ function initCharts(){
       data:{
         labels:fundLabels,
         datasets:[
-          {label:'Funding Received ($B)',data:[3.1,4.2,4.8,7.2,8.8,5.1,4.2],
-            backgroundColor:'rgba(226,89,26,0.85)',borderRadius:3,borderSkipped:false},
-          {label:'Funding Gap ($B)',data:[1.5,2.1,2.8,1.2,1.3,4.6,6.1],
-            backgroundColor:'rgba(94,6,6,0.25)',borderWidth:1,borderColor:'#5e0606',
-            borderRadius:3,borderSkipped:false}
+          {label:'Funding Required ($B)',data:fundRequired,
+            backgroundColor:'rgba(100,100,100,0.18)',borderColor:'rgba(100,100,100,0.5)',
+            borderWidth:1,borderRadius:3,borderSkipped:false},
+          {label:'Funding Received ($B)',data:fundReceived,
+            backgroundColor:'rgba(226,89,26,0.82)',borderRadius:3,borderSkipped:false}
         ]
       },
       options:{
         responsive:true,
         plugins:{
           legend:{display:true,position:'bottom',align:'start',labels:{boxWidth:10,padding:16,font:{size:10}}},
-          tooltip:{callbacks:{label:ctx=>` ${ctx.dataset.label}: $${ctx.parsed.y}B`,
-            footer:items=>' Total need: $'+(items.reduce((s,i)=>s+i.parsed.y,0).toFixed(1))+'B'},
-            cornerRadius:4},
+          tooltip:{callbacks:{
+            label:ctx=>` ${ctx.dataset.label}: $${ctx.parsed.y.toFixed(1)}B`,
+            footer:items=>{
+              const req=items.find(i=>i.datasetIndex===0);
+              const rec=items.find(i=>i.datasetIndex===1);
+              if(!req||!rec) return '';
+              const gap=(req.parsed.y-rec.parsed.y).toFixed(1);
+              const pct=Math.round(rec.parsed.y/req.parsed.y*100);
+              return[` Gap: $${gap}B unmet`,` Coverage: ${pct}%`];
+            }
+          },cornerRadius:4},
           annotation:{annotations:fundingAnnotations}
         },
         scales:{
-          x:{stacked:true,grid:{display:false}},
-          y:{stacked:true,grid:{color:gridColor},ticks:{callback:v=>'$'+v+'B'},
+          x:{grouped:true,grid:{display:false}},
+          y:{grid:{color:gridColor},min:0,ticks:{callback:v=>'$'+v+'B'},
             title:{display:true,text:'USD Billions',font:{size:9}}}
         }
       }
@@ -1684,9 +1711,17 @@ async function fetchHDXData(countryName){
     const r=await fetch('/.netlify/functions/hdx?iso3='+iso3,{signal:AbortSignal.timeout(20000)});
     if(!r.ok) return null;
     const result=await r.json();
-    HDX_DATA[countryName]=result.data||{};
-    console.log('[HDX] Loaded data for '+countryName);
-    return HDX_DATA[countryName];
+    if(result&&result.data){
+      HDX_DATA[countryName]=result.data;
+      const counts=Object.keys(result.data).map(k=>k+':'+(result.data[k]||[]).length).join(', ');
+      console.log('[HDX] Loaded data for '+countryName+' — '+counts);
+      const sample=(result.data.food_security||[])[0];
+      if(sample) console.log('[HDX] Sample food_security row for '+countryName+':', JSON.stringify(sample));
+      else console.warn('[HDX] No food_security rows for '+countryName);
+      return HDX_DATA[countryName];
+    }
+    console.warn('[HDX] Unexpected response for '+countryName+':', JSON.stringify(result));
+    return null;
   }catch(err){
     console.warn('[HDX] Failed for '+countryName+':',err.message);
     return null;
@@ -1701,6 +1736,7 @@ async function fetchAllHDXData(){
     if(i+BATCH_SIZE<CRISIS_DATA.length) await new Promise(r=>setTimeout(r,500));
   }
   console.log('[HDX] All country data fetched');
+  onHDXDataReady();
 }
 
 async function fetchIPCData(countryName){
@@ -1737,17 +1773,19 @@ function updateOverviewStats(){
   CRISIS_DATA.forEach(d=>{
     const hdx=HDX_DATA[d.country];
     if(!hdx||!hdx.food_security||hdx.food_security.length===0) return;
-    const currentData=hdx.food_security
-      .filter(r=>r.ipc_type==='current'&&r.admin_level===0)
+    const allL0=hdx.food_security.filter(r=>Number(r.admin_level)===0);
+    const currentPref=allL0.filter(r=>r.ipc_type==='current');
+    const currentData=(currentPref.length>0?currentPref:allL0)
       .sort((a,b)=>new Date(b.reference_period_start)-new Date(a.reference_period_start));
     if(currentData.length===0) return;
     activeZones++;
     const latestDate=currentData[0].reference_period_start;
     currentData.filter(r=>r.reference_period_start===latestDate).forEach(r=>{
       const pop=r.population_in_phase||0;
-      if(r.ipc_phase==='4') totalPhase4+=pop;
-      if(r.ipc_phase==='5') totalPhase5+=pop;
-      if(['3','4','5'].includes(r.ipc_phase)) totalPhase3plus+=pop;
+      const ph=Number(r.ipc_phase);
+      if(ph===4) totalPhase4+=pop;
+      if(ph===5) totalPhase5+=pop;
+      if(ph>=3) totalPhase3plus+=pop;
     });
   });
   function fmtNum(n){
@@ -1787,8 +1825,9 @@ function updateOverviewStats(){
 function buildMapPanelHDXSection(countryName){
   const hdx=HDX_DATA[countryName];
   if(!hdx) return '';
-  const fsRows=(hdx.food_security||[])
-    .filter(r=>r.ipc_type==='current'&&r.admin_level===0)
+  const fsAllL0=(hdx.food_security||[]).filter(r=>Number(r.admin_level)===0);
+  const fsCurrentPref=fsAllL0.filter(r=>r.ipc_type==='current');
+  const fsRows=(fsCurrentPref.length>0?fsCurrentPref:fsAllL0)
     .sort((a,b)=>new Date(b.reference_period_start)-new Date(a.reference_period_start));
   const latestDate=fsRows[0]&&fsRows[0].reference_period_start;
   const latestFs=latestDate?fsRows.filter(r=>r.reference_period_start===latestDate):[];
@@ -1810,7 +1849,7 @@ function buildMapPanelHDXSection(countryName){
     html+='<div style="margin-bottom:12px;">'
       +'<div style="font-family:\'IBM Plex Mono\',monospace;font-size:.5rem;text-transform:uppercase;color:var(--gray-500);margin-bottom:6px;">Population by IPC phase</div>';
     [3,4,5].forEach(p=>{
-      const row=latestFs.find(r=>r.ipc_phase===String(p));
+      const row=latestFs.find(r=>Number(r.ipc_phase)===p);
       if(!row||!row.population_in_phase) return;
       const frac=Math.min(100,((row.population_fraction_in_phase||0)*100)).toFixed(0);
       html+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">'
@@ -1865,7 +1904,7 @@ function buildProfileHTML(d){
   // HDX food security phase breakdown
   const fsData=(hdx.food_security||[]).filter(r=>r.ipc_type==='current');
   const fsPhases=[1,2,3,4,5].map(p=>{
-    const row=fsData.find(r=>r.ipc_phase===String(p));
+    const row=fsData.find(r=>Number(r.ipc_phase)===p);
     return{phase:p,pop:row?row.population_in_phase:0,frac:row?(row.population_fraction_in_phase*100).toFixed(1):0};
   });
 
@@ -2031,13 +2070,45 @@ function toggleAccordion(id){
 
 // ── Trends Page Functions ───────────────────────────────────────────────
 
+function onHDXDataReady(){
+  window.hdxDataReady=true;
+  updateOverviewStats();
+  if(trendsInitialized) updateAllTrendsCharts();
+}
+
+function showTrendsLoadingState(){
+  ['correlationChart','ipcTrendChart','foodPriceChart','displacementChart'].forEach(id=>{
+    const canvas=document.getElementById(id);
+    if(!canvas) return;
+    const parent=canvas.parentElement;
+    if(parent){
+      parent.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100%;gap:10px;">'
+        +'<div style="width:6px;height:6px;background:var(--ipc4);border-radius:50%;animation:pulse-dot 1s infinite;"></div>'
+        +'<div style="font-family:\'IBM Plex Mono\',monospace;font-size:.6rem;color:var(--gray-400);letter-spacing:.08em;">LOADING HDX DATA...</div>'
+        +'</div>';
+    }
+  });
+}
+
+function ensureCanvas(canvasId,height){
+  let canvas=document.getElementById(canvasId);
+  if(!canvas){
+    const wrapper=document.querySelector('[data-canvas-wrapper="'+canvasId+'"]');
+    if(wrapper){
+      wrapper.innerHTML='<canvas id="'+canvasId+'"></canvas>';
+      canvas=document.getElementById(canvasId);
+    }
+  }
+  return canvas;
+}
+
 function showChartEmpty(canvasId,message){
   const canvas=document.getElementById(canvasId);
   if(!canvas) return;
   const parent=canvas.parentElement;
-  if(parent){
-    parent.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100%;font-family:\'IBM Plex Mono\',monospace;font-size:.65rem;color:var(--gray-400);text-align:center;padding:20px;">'+message+'</div>';
-  }
+  if(!parent) return;
+  const h=parent.style.height||'260px';
+  parent.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:'+h+';font-family:\'IBM Plex Mono\',monospace;font-size:.62rem;color:var(--gray-400);text-align:center;padding:20px;flex-direction:column;gap:8px;"><span style="font-size:1.2rem;opacity:.3;">&#9675;</span>'+message+'</div>';
 }
 
 function buildCountryChips(){
@@ -2067,7 +2138,7 @@ function selectTrendsCountry(countryName){
     trendsCompareCountries=[countryName];
   }
   buildCountryChips();
-  updateAllTrendsCharts();
+  if(window.hdxDataReady) updateAllTrendsCharts();
 }
 
 function toggleCompareMode(){
@@ -2084,7 +2155,7 @@ function toggleCompareMode(){
     if(hint) hint.style.display='none';
   }
   buildCountryChips();
-  updateAllTrendsCharts();
+  if(window.hdxDataReady) updateAllTrendsCharts();
 }
 
 function prepareCorrelationData(countryName){
@@ -2096,13 +2167,13 @@ function prepareCorrelationData(countryName){
     conflictByMonth[date]=(conflictByMonth[date]||0)+(e.events||1);
   });
   const hungerByPeriod={};
-  (hdx.food_security||[])
-    .filter(r=>r.ipc_type==='current'&&r.admin_level===0&&['3','4','5'].includes(r.ipc_phase))
-    .forEach(r=>{
-      const date=r.reference_period_start&&r.reference_period_start.slice(0,7);
-      if(!date) return;
-      hungerByPeriod[date]=(hungerByPeriod[date]||0)+(r.population_in_phase||0);
-    });
+  const allCorrelFs=(hdx.food_security||[]).filter(r=>Number(r.admin_level)===0&&Number(r.ipc_phase)>=3);
+  const correlCurrent=allCorrelFs.filter(r=>r.ipc_type==='current');
+  (correlCurrent.length>0?correlCurrent:allCorrelFs).forEach(r=>{
+    const date=r.reference_period_start&&r.reference_period_start.slice(0,7);
+    if(!date) return;
+    hungerByPeriod[date]=(hungerByPeriod[date]||0)+(r.population_in_phase||0);
+  });
   const allDates=[...new Set([...Object.keys(conflictByMonth),...Object.keys(hungerByPeriod)])].sort();
   return{
     labels:allDates,
@@ -2115,7 +2186,7 @@ function prepareCorrelationData(countryName){
 
 function renderCorrelationChart(countries){
   if(trendsChartInstances.correlation){trendsChartInstances.correlation.destroy();trendsChartInstances.correlation=null;}
-  const canvas=document.getElementById('correlationChart');
+  const canvas=ensureCanvas('correlationChart','300px');
   if(!canvas) return;
   if(!trendsCompareMode||countries.length===1){
     const countryName=countries[0];
@@ -2204,7 +2275,7 @@ function prepareFoodPriceData(countryName){
 
 function renderFoodPriceChart(countries){
   if(trendsChartInstances.foodPrice){trendsChartInstances.foodPrice.destroy();trendsChartInstances.foodPrice=null;}
-  const canvas=document.getElementById('foodPriceChart');
+  const canvas=ensureCanvas('foodPriceChart','260px');
   if(!canvas) return;
   const data=prepareFoodPriceData(countries[0]);
   if(!data){showChartEmpty('foodPriceChart','Food price time series not available for this country.');return;}
@@ -2242,7 +2313,7 @@ function prepareDisplacementData(countryName){
 
 function renderDisplacementChart(countries){
   if(trendsChartInstances.displacement){trendsChartInstances.displacement.destroy();trendsChartInstances.displacement=null;}
-  const canvas=document.getElementById('displacementChart');
+  const canvas=ensureCanvas('displacementChart','240px');
   if(!canvas) return;
   if(!trendsCompareMode||countries.length===1){
     const data=prepareDisplacementData(countries[0]);
@@ -2282,7 +2353,7 @@ function renderDisplacementChart(countries){
 
 function renderGHIChart(){
   if(trendsChartInstances.ghi){trendsChartInstances.ghi.destroy();trendsChartInstances.ghi=null;}
-  const canvas=document.getElementById('ghiChart');
+  const canvas=ensureCanvas('ghiChart','400px');
   if(!canvas) return;
   const sorted=CRISIS_DATA.filter(d=>d.ghiScore).sort((a,b)=>b.ghiScore-a.ghiScore);
   if(sorted.length===0){showChartEmpty('ghiChart','GHI score data not available.');return;}
@@ -2317,7 +2388,7 @@ function renderGHIChart(){
 
 function renderRegionalChart(){
   if(trendsChartInstances.regional){trendsChartInstances.regional.destroy();trendsChartInstances.regional=null;}
-  const canvas=document.getElementById('regionalChart');
+  const canvas=ensureCanvas('regionalChart','240px');
   if(!canvas) return;
   const regions={};
   CRISIS_DATA.forEach(d=>{
@@ -2354,20 +2425,23 @@ function renderRegionalChart(){
 
 function renderIPCTrendChart(countries){
   if(trendsChartInstances.ipcTrend){trendsChartInstances.ipcTrend.destroy();trendsChartInstances.ipcTrend=null;}
-  const canvas=document.getElementById('ipcTrendChart');
+  const canvas=ensureCanvas('ipcTrendChart','260px');
   if(!canvas) return;
   const countryName=countries[0];
   const hdx=HDX_DATA[countryName]||{};
-  const fs=(hdx.food_security||[]).filter(r=>r.ipc_type==='current'&&r.admin_level===0);
+  const allFs=(hdx.food_security||[]).filter(r=>Number(r.admin_level)===0);
+  const fsCurrent=allFs.filter(r=>r.ipc_type==='current');
+  const fs=fsCurrent.length>0?fsCurrent:allFs;
   if(fs.length===0){showChartEmpty('ipcTrendChart','IPC phase time series not available for this country.');return;}
   const byPeriod={};
   fs.forEach(r=>{
     const date=r.reference_period_start&&r.reference_period_start.slice(0,7);
     if(!date) return;
     if(!byPeriod[date]) byPeriod[date]={p3:0,p4:0,p5:0};
-    if(r.ipc_phase==='3') byPeriod[date].p3+=r.population_in_phase||0;
-    if(r.ipc_phase==='4') byPeriod[date].p4+=r.population_in_phase||0;
-    if(r.ipc_phase==='5') byPeriod[date].p5+=r.population_in_phase||0;
+    const ph=Number(r.ipc_phase);
+    if(ph===3) byPeriod[date].p3+=r.population_in_phase||0;
+    if(ph===4) byPeriod[date].p4+=r.population_in_phase||0;
+    if(ph===5) byPeriod[date].p5+=r.population_in_phase||0;
   });
   const labels=Object.keys(byPeriod).sort();
   trendsChartInstances.ipcTrend=new Chart(canvas,{
@@ -2397,6 +2471,18 @@ function renderIPCTrendChart(countries){
 
 function updateAllTrendsCharts(){
   const countries=trendsCompareMode?trendsCompareCountries:[trendsSelectedCountry];
+  const primary=countries[0];
+  const hdxKeys=Object.keys(HDX_DATA);
+  console.log('[Trends] updateAllTrendsCharts for',countries,'| HDX loaded countries:',hdxKeys.length,hdxKeys);
+  const d=HDX_DATA[primary];
+  if(d){
+    console.log('[Trends]',primary,'food_security rows:',( d.food_security||[]).length,'| food_prices:',( d.food_prices||[]).length,'| idps:',( d.idps||[]).length,'| conflict:',( d.conflict||[]).length);
+    const fsTypes=[...new Set((d.food_security||[]).map(r=>r.ipc_type))];
+    const fsLevels=[...new Set((d.food_security||[]).map(r=>r.admin_level))];
+    console.log('[Trends]',primary,'ipc_type values:',fsTypes,'| admin_level values:',fsLevels);
+  } else {
+    console.warn('[Trends] No HDX data for primary country:',primary,'| hdxDataReady:',window.hdxDataReady);
+  }
   renderCorrelationChart(countries);
   renderFoodPriceChart(countries);
   renderDisplacementChart(countries);

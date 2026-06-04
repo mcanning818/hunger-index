@@ -38,7 +38,14 @@ exports.handler = async function(event, context) {
   await Promise.allSettled(
     Object.entries(toFetch).map(async ([key, url]) => {
       try {
-        const r = await fetch(url, { signal: AbortSignal.timeout(12000) });
+        const r = await fetch(url, {
+          signal: AbortSignal.timeout(12000),
+          headers: {
+            'Accept': 'application/json',
+            'User-Agent': 'TheHungerIndex/1.0 (thehungerindex.netlify.app; mikahcanning@gmail.com)',
+            'Content-Type': 'application/json'
+          }
+        });
         if (!r.ok) { console.warn(`HDX ${key} failed: HTTP ${r.status}`); return; }
         const data = await r.json();
         results[key] = data.data || [];
