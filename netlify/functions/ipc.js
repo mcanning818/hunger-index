@@ -105,9 +105,16 @@ exports.handler = async function(event, context) {
   const currentPhases = extractPhases(summary);
   const hasData = currentPhases && currentPhases.total > 0;
 
+  function fixEnc(s) {
+    if (!s) return s;
+    return s.replace(/â€"/g, '–').replace(/â€™/g, '’').replace(/â€œ/g, '“').replace(/â€/g, '”');
+  }
+
   const refPeriod = summary?.from && summary?.to
     ? `${summary.from} – ${summary.to}`
     : null;
+
+  if (summary?.title) summary.title = fixEnc(summary.title);
 
   console.log(`[IPC] ${iso3} — hasData: ${hasData}, P3+: ${currentPhases?.phase3plus?.toLocaleString() || 0}, period: ${refPeriod}`);
 
