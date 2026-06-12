@@ -1,5 +1,3 @@
-const BASE = 'https://api.ipcinfo.org/v2';
-
 exports.handler = async function(event, context) {
   const headers = {
     'Access-Control-Allow-Origin': '*',
@@ -27,11 +25,25 @@ exports.handler = async function(event, context) {
     };
   }
 
-  console.log(`[IPC] Fetching data for ${iso3}`);
+  // IPC uses 2-letter ISO codes, not ISO3
+  const ISO3_TO_ISO2 = {
+    'SDN': 'SD', 'SSD': 'SS', 'PSE': 'PS', 'YEM': 'YE', 'HTI': 'HT',
+    'COD': 'CD', 'AFG': 'AF', 'ETH': 'ET', 'MLI': 'ML', 'SOM': 'SO',
+    'MMR': 'MM', 'SYR': 'SY', 'NGA': 'NG', 'ZWE': 'ZW', 'CMR': 'CM',
+    'TCD': 'TD', 'KEN': 'KE', 'BFA': 'BF', 'LBN': 'LB', 'COL': 'CO',
+    'MOZ': 'MZ', 'TJK': 'TJ', 'GTM': 'GT', 'BDI': 'BI'
+  };
+
+  const iso2 = ISO3_TO_ISO2[iso3];
+  if (!iso2) {
+    return { statusCode: 200, headers, body: JSON.stringify({ status: 'unavailable', reason: 'no_iso2_mapping', data: {} }) };
+  }
+
+  console.log(`[IPC] Fetching data for ${iso3} (${iso2})`);
 
   const endpoints = {
-    country: `${BASE}/country?key=${IPC_API_KEY}&country=${iso3}&format=json`,
-    population: `${BASE}/population?key=${IPC_API_KEY}&country=${iso3}&format=json`,
+    country: `https://api.ipcinfo.org/country?country=${iso2}&key=${IPC_API_KEY}&format=json`,
+    analyses: `https://api.ipcinfo.org/analyses?country=${iso2}&type=A&key=${IPC_API_KEY}&format=json`,
   };
 
   const results = {};
@@ -67,7 +79,7 @@ exports.handler = async function(event, context) {
     })
   );
 
-  const current = results.population || [];
+  const current = results.analyses || [];
   const projection = [];
   const countrySummary = results.country || {};
 
