@@ -1227,66 +1227,7 @@ function initCharts(){
   Chart.defaults.animation.duration=900;
   Chart.defaults.animation.easing='easeOutQuart';
 
-  const gridColor='rgba(0,0,0,0.05)';
-  const fundLabels=['2018','2019','2020','2021','2022','2023','2024'];
-
-  // ── Funding: grouped bars — Required vs Received ─────────────────────
-  // Source: WFP Annual Performance Reports 2018–2024 (approximate)
-  const fundRequired=[9.1,9.5,10.2,14.2,22.2,22.8,20.0];
-  const fundReceived=[6.4,7.3, 8.4, 9.6,14.5, 8.6, 8.2];
-  const fundEl=document.getElementById('chartFunding');
-  if(fundEl){
-    const fundingAnnotations={
-      fundingCrisisLine:{
-        type:'line',xMin:'2023',xMax:'2023',
-        borderColor:'rgba(139,0,0,0.35)',borderWidth:1,borderDash:[4,4]
-      },
-      fundingCrisisLabel:{
-        type:'label',xValue:'2023',yValue:24,
-        content:['Funding crisis'],
-        backgroundColor:'rgba(139,0,0,0.85)',color:'white',
-        font:{size:10,family:"'IBM Plex Mono',monospace"},
-        padding:{x:8,y:4},position:'start',yAdjust:-10
-      }
-    };
-    new Chart(fundEl,{
-      type:'bar',
-      data:{
-        labels:fundLabels,
-        datasets:[
-          {label:'Funding Required ($B)',data:fundRequired,
-            backgroundColor:'rgba(100,100,100,0.18)',borderColor:'rgba(100,100,100,0.5)',
-            borderWidth:1,borderRadius:3,borderSkipped:false},
-          {label:'Funding Received ($B)',data:fundReceived,
-            backgroundColor:'rgba(226,89,26,0.82)',borderRadius:3,borderSkipped:false}
-        ]
-      },
-      options:{
-        responsive:true,
-        plugins:{
-          legend:{display:true,position:'bottom',align:'start',labels:{boxWidth:10,padding:16,font:{size:10}}},
-          tooltip:{callbacks:{
-            label:ctx=>` ${ctx.dataset.label}: $${ctx.parsed.y.toFixed(1)}B`,
-            footer:items=>{
-              const req=items.find(i=>i.datasetIndex===0);
-              const rec=items.find(i=>i.datasetIndex===1);
-              if(!req||!rec) return '';
-              const gap=(req.parsed.y-rec.parsed.y).toFixed(1);
-              const pct=Math.round(rec.parsed.y/req.parsed.y*100);
-              return[` Gap: $${gap}B unmet`,` Coverage: ${pct}%`];
-            }
-          },cornerRadius:4},
-          annotation:{annotations:fundingAnnotations}
-        },
-        scales:{
-          x:{grouped:true,grid:{display:false}},
-          y:{grid:{color:gridColor},min:0,ticks:{callback:v=>'$'+v+'B'},
-            title:{display:true,text:'USD Billions',font:{size:9}}}
-        }
-      }
-    });
-  }
-
+  renderFundingChart();
   anime({targets:'.chart-card-full',opacity:[0,1],translateY:[18,0],delay:anime.stagger(80),duration:700,easing:'easeOutCubic'});
 }
 
@@ -2057,6 +1998,78 @@ function getIPCPhaseData(countryName){
   return staticData?{source:'Static (2024)',phase3plus:null,phase4:null,phase5:null,overallPhase:staticData.ipc,isLive:false}:null;
 }
 
+function fmtNum(n){
+  if(!n||n===0) return null;
+  if(n>=1e9) return (n/1e9).toFixed(1);
+  if(n>=1e6) return (n/1e6).toFixed(1);
+  if(n>=1e3) return (n/1e3).toFixed(0);
+  return n.toLocaleString();
+}
+function fmtUnit(n){
+  if(!n||n===0) return '';
+  if(n>=1e9) return 'B';
+  if(n>=1e6) return 'M';
+  if(n>=1e3) return 'K';
+  return '';
+}
+
+function getDisplacementData(countryName){
+  const hdx=HDX_DATA[countryName]||{};
+
+  // IDPs: HDX (IOM DTM) → UNHCR → static
+  let idpData=null;
+  const hdxIdps=hdx.idps||[];
+  if(hdxIdps.length>0){
+    const latest=hdxIdps.sort((a,b)=>new Date(b.reference_period_start)-new Date(a.reference_period_start))[0];
+    if(latest.population>0) idpData={count:latest.population,year:latest.reference_period_start?.slice(0,4)||'2024',source:'IOM DTM via HDX',isLive:true};
+  }
+  if(!idpData||idpData.count===0){
+    const unhcrIdps=hdx.unhcr_idps||[];
+    if(unhcrIdps.length>0){
+      const latest=unhcrIdps.sort((a,b)=>b.year-a.year)[0];
+      if(latest.idps>0) idpData={count:latest.idps,year:String(latest.year),source:'UNHCR',isLive:true};
+    }
+  }
+  if(!idpData||idpData.count===0){
+    const staticData=CRISIS_DATA.find(d=>d.country===countryName);
+    if(staticData?.idps) idpData={count:staticData.idps,year:'2024',source:'Static (2024)',isLive:false};
+  }
+
+  // Refugees: HDX → UNHCR
+  let refugeeData=null;
+  const hdxRefugees=hdx.refugees||[];
+  if(hdxRefugees.length>0){
+    const total=hdxRefugees.reduce((s,r)=>s+(r.population||0),0);
+    if(total>0) refugeeData={count:total,source:'UNHCR via HDX',isLive:true};
+  }
+  if(!refugeeData||refugeeData.count===0){
+    const unhcrRefugees=hdx.unhcr_refugees||[];
+    if(unhcrRefugees.length>0){
+      const latest=unhcrRefugees.sort((a,b)=>b.year-a.year)[0];
+      const total=(latest.refugees||0)+(latest.asylum_seekers||0);
+      if(total>0) refugeeData={count:total,year:String(latest.year),source:'UNHCR',isLive:true};
+    }
+  }
+
+  // Funding: OCHA FTS
+  let fundingData=null;
+  const fts=hdx.fts_funding||[];
+  if(fts.length>0){
+    const latest=fts[0];
+    fundingData={
+      planName:latest.name||'',
+      totalFunding:latest.totalFunding||0,
+      requirements:latest.revisedRequirements||0,
+      percentFunded:latest.percentFunded||0,
+      peopleTargeted:latest.numPeopleTargeted||0,
+      source:'OCHA FTS',
+      isLive:true,
+    };
+  }
+
+  return{idpData,refugeeData,fundingData};
+}
+
 function updateOverviewStats(){
   let totalPhase4=0,totalPhase5=0,totalPhase3plus=0,activeZones=0;
   CRISIS_DATA.forEach(d=>{
@@ -2069,20 +2082,6 @@ function updateOverviewStats(){
     if(ipcData.phase4>0) totalPhase4+=ipcData.phase4;
     if(ipcData.phase5>0) totalPhase5+=ipcData.phase5;
   });
-  function fmtNum(n){
-    if(!n||n===0) return null;
-    if(n>=1e9) return (n/1e9).toFixed(1);
-    if(n>=1e6) return (n/1e6).toFixed(1);
-    if(n>=1e3) return (n/1e3).toFixed(0);
-    return n.toLocaleString();
-  }
-  function fmtUnit(n){
-    if(!n||n===0) return '';
-    if(n>=1e9) return 'B';
-    if(n>=1e6) return 'M';
-    if(n>=1e3) return 'K';
-    return '';
-  }
   const updateStat=(numId,unitId,value)=>{
     const numEl=document.getElementById(numId);
     if(!numEl||!value) return;
@@ -2169,16 +2168,16 @@ function buildMapPanelHDXSection(countryName){
 
 function buildProfileHTML(d){
   const wb=WORLDBANK_DATA[d.country]||{};
-  const un=UNHCR_DATA[d.country]||{};
   const hdx=HDX_DATA[d.country]||{};
   const ipc=IPC_DATA[d.country]||null;
+  const {idpData,refugeeData,fundingData}=getDisplacementData(d.country);
 
   const ipcBar=[1,2,3,4,5].map(p=>'<div style="flex:1;height:8px;background:'+(p<=d.ipc?ipcColors[p]:'var(--gray-100)')+';"></div>').join('');
   const gdpStr=wb.gdpPerCap?'$'+Math.round(wb.gdpPerCap).toLocaleString():'—';
   const povStr=wb.povertyRate?wb.povertyRate.toFixed(1)+'%':'—';
   const malStr=wb.malnutrition?wb.malnutrition.toFixed(1)+'%':'—';
-  const idpStr=un.displaced?((un.displaced/1e6).toFixed(2)+'M'):'—';
-  const refStr=un.refugees?((un.refugees/1e6).toFixed(2)+'M'):'—';
+  const idpStr=idpData?.count>0?((idpData.count/1e6).toFixed(2)+'M'):'—';
+  const refStr=refugeeData?.count>0?((refugeeData.count/1e6).toFixed(2)+'M'):'—';
   const ghiColor=ipcColors[Math.min(5,Math.max(1,Math.round((d.ghiScore||0)/20)))];
   const ghiStr=d.ghiScore?'<div class="ghi-badge"><div class="ghi-badge-score" style="color:'+ghiColor+'">'+d.ghiScore.toFixed(1)+'</div><div class="ghi-badge-label">GHI Score 2023</div></div>':'';
 
@@ -2295,18 +2294,49 @@ function buildProfileHTML(d){
   );
 
   // Section 3: Displacement & Humanitarian Needs
+  const idpSourceBadge=idpData?('<span style="margin-left:8px;background:'+(idpData.isLive?'#1a5c1a':'var(--gray-300)')+';color:'+(idpData.isLive?'white':'var(--gray-600)')+';padding:1px 5px;border-radius:2px;font-size:.48rem;">'+idpData.source+'</span>'):'';
+  const refSourceBadge=refugeeData?('<span style="margin-left:8px;background:'+(refugeeData.isLive?'#1a5c1a':'var(--gray-300)')+';color:'+(refugeeData.isLive?'white':'var(--gray-600)')+';padding:1px 5px;border-radius:2px;font-size:.48rem;">'+refugeeData.source+'</span>'):'';
+
+  const idpBlock=idpData?.count>0
+    ?'<div style="margin-bottom:16px;">'
+      +'<div style="font-family:\'IBM Plex Mono\',monospace;font-size:.52rem;letter-spacing:.1em;text-transform:uppercase;color:var(--gray-500);margin-bottom:6px;">Internally Displaced'+idpSourceBadge+'</div>'
+      +'<div style="font-family:\'Playfair Display\',serif;font-weight:700;font-size:1.6rem;">'+(fmtNum(idpData.count)||'—')+'<span style="font-size:.9rem;font-weight:400;font-family:\'IBM Plex Mono\',monospace;"> '+fmtUnit(idpData.count)+'</span></div>'
+      +(idpData.year?'<div style="font-family:\'IBM Plex Mono\',monospace;font-size:.52rem;color:var(--gray-400);">'+idpData.year+'</div>':'')
+      +'</div>'
+    :'<div style="font-family:\'IBM Plex Mono\',monospace;font-size:.6rem;color:var(--gray-400);margin-bottom:16px;">IDP data unavailable</div>';
+
+  const refBlock=refugeeData?.count>0
+    ?'<div style="margin-bottom:16px;">'
+      +'<div style="font-family:\'IBM Plex Mono\',monospace;font-size:.52rem;letter-spacing:.1em;text-transform:uppercase;color:var(--gray-500);margin-bottom:6px;">Refugees &amp; Asylum Seekers'+refSourceBadge+'</div>'
+      +'<div style="font-family:\'Playfair Display\',serif;font-weight:700;font-size:1.6rem;">'+(fmtNum(refugeeData.count)||'—')+'<span style="font-size:.9rem;font-weight:400;font-family:\'IBM Plex Mono\',monospace;"> '+fmtUnit(refugeeData.count)+'</span></div>'
+      +(refugeeData.year?'<div style="font-family:\'IBM Plex Mono\',monospace;font-size:.52rem;color:var(--gray-400);">'+refugeeData.year+'</div>':'')
+      +'</div>'
+    :'';
+
+  const fundingBlock=fundingData
+    ?'<div style="margin-top:20px;padding-top:16px;border-top:var(--border);">'
+      +'<div style="font-family:\'IBM Plex Mono\',monospace;font-size:.52rem;letter-spacing:.1em;text-transform:uppercase;color:var(--gray-500);margin-bottom:10px;">Humanitarian Response Plan'
+      +'<span style="margin-left:8px;background:#185FA5;color:white;padding:1px 5px;border-radius:2px;font-size:.48rem;">OCHA FTS</span></div>'
+      +(fundingData.planName?'<div style="font-family:\'Source Serif 4\',serif;font-size:.85rem;color:var(--gray-600);margin-bottom:10px;">'+fundingData.planName+'</div>':'')
+      +'<div style="background:var(--gray-100);border-radius:4px;overflow:hidden;height:8px;margin-bottom:6px;">'
+      +'<div style="height:100%;width:'+Math.min(fundingData.percentFunded,100)+'%;background:'+(fundingData.percentFunded>=60?'#1a5c1a':fundingData.percentFunded>=30?'#f5a12e':'#bb2c0b')+';transition:width .6s;"></div></div>'
+      +'<div style="display:flex;justify-content:space-between;font-family:\'IBM Plex Mono\',monospace;font-size:.52rem;color:var(--gray-500);">'
+      +'<span>'+fundingData.percentFunded.toFixed(1)+'% funded</span>'
+      +'<span>$'+(fundingData.totalFunding/1e9).toFixed(2)+'B of $'+(fundingData.requirements/1e9).toFixed(2)+'B needed</span></div>'
+      +(fundingData.peopleTargeted>0?'<div style="font-family:\'IBM Plex Mono\',monospace;font-size:.52rem;color:var(--gray-400);margin-top:4px;">'+(fmtNum(fundingData.peopleTargeted)||'')+(fmtUnit(fundingData.peopleTargeted))+' people targeted</div>':'')
+      +'</div>'
+    :'';
+
   const displSection=accordion('Displacement &amp; Humanitarian Needs','🏕️',
-    '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:.52rem;color:var(--gray-500);">UNHCR · IOM · HDX</span>',
+    '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:.52rem;color:var(--gray-500);">UNHCR · IOM · OCHA FTS</span>',
     idpStr!=='—'?idpStr+' displaced internally':'Displacement data',
     '<div style="margin-top:16px;">'
     +'<div style="background:var(--gray-100);border-left:3px solid var(--ipc3);padding:12px 16px;margin-bottom:16px;font-family:\'Source Serif 4\',serif;font-size:.9rem;line-height:1.6;">'
-    +'<strong>Key insight:</strong> '+(un.displaced?idpStr+' people are internally displaced in '+d.country:'Displacement tracking data is limited for '+d.country+' due to access constraints')+(un.refugees?', with an additional '+refStr+' who have fled as refugees to neighboring countries.':'.')+'</div>'
-    +'<div class="profile-live-grid">'
-    +'<div class="profile-live-stat"><div class="profile-live-val">'+idpStr+'</div><div class="profile-live-lbl">Internally displaced (IDPs)</div></div>'
-    +'<div class="profile-live-stat"><div class="profile-live-val">'+refStr+'</div><div class="profile-live-lbl">Refugees abroad</div></div>'
-    +(totalInNeed>0?'<div class="profile-live-stat"><div class="profile-live-val">'+(totalInNeed/1e6).toFixed(2)+'M</div><div class="profile-live-lbl">People in humanitarian need</div></div>':'')
-    +'</div>'
-    +'<p style="font-family:\'IBM Plex Mono\',monospace;font-size:.52rem;color:var(--gray-400);margin-top:12px;">Sources: UNHCR Population Statistics · IOM DTM · HDX HAPI · 2023–2024</p>'
+    +'<strong>Key insight:</strong> '+(idpData?.count>0?idpStr+' people are internally displaced in '+d.country:'Displacement tracking data is limited for '+d.country+' due to access constraints')+(refugeeData?.count>0?', with an additional '+refStr+' who have fled as refugees to neighboring countries.':'.')+'</div>'
+    +idpBlock+refBlock
+    +(totalInNeed>0?'<div style="margin-bottom:16px;"><div style="font-family:\'IBM Plex Mono\',monospace;font-size:.52rem;letter-spacing:.1em;text-transform:uppercase;color:var(--gray-500);margin-bottom:6px;">People in Humanitarian Need</div><div style="font-family:\'Playfair Display\',serif;font-weight:700;font-size:1.6rem;">'+(totalInNeed/1e6).toFixed(2)+'<span style="font-size:.9rem;font-weight:400;font-family:\'IBM Plex Mono\',monospace;">M</span></div></div>':'')
+    +fundingBlock
+    +'<p style="font-family:\'IBM Plex Mono\',monospace;font-size:.52rem;color:var(--gray-400);margin-top:12px;">Sources: UNHCR Population Statistics · IOM DTM · OCHA FTS · HDX HAPI</p>'
     +'</div>'
   );
 
@@ -2586,17 +2616,33 @@ function renderFoodPriceChart(countries){
 }
 
 function prepareDisplacementData(countryName){
+  const {idpData}=getDisplacementData(countryName);
   const hdx=HDX_DATA[countryName]||{};
-  const idps=hdx.idps||[];
-  if(idps.length===0) return null;
-  const byDate={};
-  idps.forEach(r=>{
-    const date=r.reference_period_start&&r.reference_period_start.slice(0,7);
-    if(!date) return;
-    byDate[date]=(byDate[date]||0)+(r.population||0);
-  });
-  const labels=Object.keys(byDate).sort();
-  return{labels,data:labels.map(d=>byDate[d]/1e6)};
+
+  // Prefer UNHCR year-by-year time series (≥2 points)
+  const unhcrIdps=(hdx.unhcr_idps||[]).filter(r=>r.idps>0).sort((a,b)=>a.year-b.year);
+  if(unhcrIdps.length>=2){
+    return{labels:unhcrIdps.map(r=>String(r.year)),data:unhcrIdps.map(r=>(r.idps||0)/1e6),source:'UNHCR'};
+  }
+
+  // Fallback: HDX IOM DTM time series
+  const hdxIdps=hdx.idps||[];
+  if(hdxIdps.length>0){
+    const byDate={};
+    hdxIdps.forEach(r=>{
+      const date=r.reference_period_start&&r.reference_period_start.slice(0,7);
+      if(!date) return;
+      byDate[date]=(byDate[date]||0)+(r.population||0);
+    });
+    const labels=Object.keys(byDate).sort();
+    if(labels.length>0) return{labels,data:labels.map(d=>byDate[d]/1e6),source:'IOM DTM via HDX'};
+  }
+
+  // Single-point fallback
+  if(idpData?.count>0){
+    return{labels:[idpData.year],data:[idpData.count/1e6],source:idpData.source};
+  }
+  return null;
 }
 
 function renderDisplacementChart(countries){
@@ -2637,6 +2683,71 @@ function renderDisplacementChart(countries){
       }
     });
   }
+}
+
+function renderFundingChart(){
+  if(trendsChartInstances.funding){trendsChartInstances.funding.destroy();trendsChartInstances.funding=null;}
+  const canvas=document.getElementById('chartFunding');
+  if(!canvas) return;
+
+  // Collect live OCHA FTS data across all crisis countries
+  const fundingItems=CRISIS_DATA.map(d=>{
+    const fts=(HDX_DATA[d.country]||{}).fts_funding?.[0];
+    if(!fts) return null;
+    const label=d.country;
+    return{label,requirements:(fts.revisedRequirements||0)/1e9,funded:(fts.totalFunding||0)/1e9,percentFunded:fts.percentFunded||0};
+  }).filter(Boolean).sort((a,b)=>b.requirements-a.requirements).slice(0,12);
+
+  if(fundingItems.length>0){
+    trendsChartInstances.funding=new Chart(canvas,{
+      type:'bar',
+      data:{
+        labels:fundingItems.map(d=>d.label),
+        datasets:[
+          {label:'Requirements ($B)',data:fundingItems.map(d=>d.requirements),backgroundColor:'rgba(100,100,100,0.18)',borderColor:'rgba(100,100,100,0.5)',borderWidth:1,borderRadius:2},
+          {label:'Funded ($B)',data:fundingItems.map(d=>d.funded),backgroundColor:'rgba(26,92,26,0.7)',borderColor:'#1a5c1a',borderWidth:1,borderRadius:2},
+        ]
+      },
+      options:{
+        responsive:true,maintainAspectRatio:false,
+        interaction:{mode:'index',intersect:false},
+        plugins:{
+          legend:{labels:{font:{family:"'IBM Plex Mono',monospace",size:10}}},
+          tooltip:{callbacks:{
+            label:ctx=>` ${ctx.dataset.label}: $${ctx.parsed.y.toFixed(2)}B`,
+            afterBody:ctx=>`Funded: ${fundingItems[ctx[0].dataIndex].percentFunded.toFixed(1)}%`
+          }}
+        },
+        scales:{
+          x:{ticks:{font:{family:"'IBM Plex Mono',monospace",size:9},maxRotation:30}},
+          y:{ticks:{font:{family:"'IBM Plex Mono',monospace",size:9},callback:v=>'$'+v.toFixed(1)+'B'}}
+        }
+      }
+    });
+    return;
+  }
+
+  // Static fallback (WFP Annual Performance Reports 2018–2024)
+  const fundLabels=['2018','2019','2020','2021','2022','2023','2024'];
+  const fundRequired=[9.1,9.5,10.2,14.2,22.2,22.8,20.0];
+  const fundReceived=[6.4,7.3,8.4,9.6,14.5,8.6,8.2];
+  const gridColor='rgba(0,0,0,0.05)';
+  trendsChartInstances.funding=new Chart(canvas,{
+    type:'bar',
+    data:{labels:fundLabels,datasets:[
+      {label:'Funding Required ($B)',data:fundRequired,backgroundColor:'rgba(100,100,100,0.18)',borderColor:'rgba(100,100,100,0.5)',borderWidth:1,borderRadius:3,borderSkipped:false},
+      {label:'Funding Received ($B)',data:fundReceived,backgroundColor:'rgba(226,89,26,0.82)',borderRadius:3,borderSkipped:false}
+    ]},
+    options:{
+      responsive:true,
+      plugins:{
+        legend:{display:true,position:'bottom',align:'start',labels:{boxWidth:10,padding:16,font:{size:10}}},
+        tooltip:{callbacks:{label:ctx=>` ${ctx.dataset.label}: $${ctx.parsed.y.toFixed(1)}B`,footer:items=>{const req=items.find(i=>i.datasetIndex===0);const rec=items.find(i=>i.datasetIndex===1);if(!req||!rec)return'';return[` Gap: $${(req.parsed.y-rec.parsed.y).toFixed(1)}B unmet`,` Coverage: ${Math.round(rec.parsed.y/req.parsed.y*100)}%`];}}},
+        annotation:{annotations:{l:{type:'line',xMin:'2023',xMax:'2023',borderColor:'rgba(139,0,0,0.35)',borderWidth:1,borderDash:[4,4]},lbl:{type:'label',xValue:'2023',yValue:24,content:['Funding crisis'],backgroundColor:'rgba(139,0,0,0.85)',color:'white',font:{size:10,family:"'IBM Plex Mono',monospace"},padding:{x:8,y:4},position:'start',yAdjust:-10}}}
+      },
+      scales:{x:{grouped:true,grid:{display:false}},y:{grid:{color:gridColor},min:0,ticks:{callback:v=>'$'+v+'B'},title:{display:true,text:'USD Billions',font:{size:9}}}}
+    }
+  });
 }
 
 function renderGHIChart(){
@@ -2775,6 +2886,7 @@ function updateAllTrendsCharts(){
   renderFoodPriceChart(countries);
   renderDisplacementChart(countries);
   renderIPCTrendChart(countries);
+  renderFundingChart();
 }
 
 let aboutInitialized=false;
@@ -2782,51 +2894,32 @@ function initAbout(){
   if(aboutInitialized) return;
   aboutInitialized=true;
   const sources=[
-    ['IPC (ipcinfo.org)','Official phase classifications, population per phase, projections','As published','API key','Pending key'],
-    ['HDX HAPI (OCHA)','Food security phases, market prices, IDPs, humanitarian needs','Weekly–monthly','App identifier','✓ Live'],
-    ['World Bank Open Data','GDP per capita, poverty rate, malnutrition, population','Annual','None','✓ Live'],
-    ['UNHCR Population Stats','Refugees, displaced persons by country','Annual','None','✓ Live'],
-    ['WFP HungerMap','Food consumption scores, coping strategy index','Weekly','None (CORS limited)','Static fallback'],
-    ['FAO FAOSTAT','Prevalence of undernourishment, 130+ countries','Annual','None','Static fallback'],
-    ['ReliefWeb (UN OCHA)','Situation reports, humanitarian alerts','Continuous','Appname (pending)','Pending approval'],
-    ['Global Hunger Index','Composite hunger score, 4-indicator methodology','Annual','None','✓ Live (static)'],
-    ['GDELT / News feeds','Real-time news from AP, Reuters, BBC, Al Jazeera','Continuous','None','Backup feed'],
+    {name:'IPC — Integrated Food Security Phase Classification',url:'https://ipcinfo.org',status:'✅ Live',statusBg:'#1a5c1a',data:'Official acute food insecurity phase classifications (1–5), population counts per phase, current and projected periods.',auth:'API key (approved June 2026)',coverage:'30+ countries including all crisis countries tracked by this dashboard',notes:'Most authoritative source for IPC phase data. Takes priority over HDX HAPI food security data where available.'},
+    {name:'HDX HAPI — Humanitarian Data Exchange',url:'https://hapi.humdata.org',status:'✅ Live',statusBg:'#1a5c1a',data:'Food security phases, WFP food market prices, IDPs (IOM DTM), refugees, humanitarian needs, poverty rates.',auth:'App identifier (base64 encoded)',coverage:'Variable by endpoint — IOM DTM coverage limited to countries with active field operations',notes:'Primary source for food prices and granular sub-national data. IDP/needs coverage is sparse for ~15 of 24 tracked countries.'},
+    {name:'UNHCR — Refugee Population Statistics',url:'https://api.unhcr.org',status:'✅ Live',statusBg:'#1a5c1a',data:'Internally displaced persons (IDPs), refugees, asylum seekers by country of origin. Annual figures 2019–present.',auth:'None — public API',coverage:'All 24 crisis countries',notes:'Used as fallback when HDX HAPI IDP/refugee data is unavailable. Provides year-over-year trend data for the displacement chart.'},
+    {name:'OCHA FTS — Financial Tracking Service',url:'https://fts.unocha.org',status:'✅ Live',statusBg:'#1a5c1a',data:'Humanitarian response plan funding requirements, actual funding received, percentage funded, people targeted per country.',auth:'None — public API',coverage:'Countries with active UN humanitarian response plans (~18 of 24 tracked)',notes:'Powers the funding gap chart on the Trends page and the response plan section in country profiles.'},
+    {name:'ReliefWeb v2',url:'https://reliefweb.int',status:'✅ Live',statusBg:'#1a5c1a',data:'Humanitarian situation reports, news, press releases, assessments from WFP, OCHA, FAO, FEWS NET, MSF, IRC, and others.',auth:'Appname: thehungerindex-TlD3aiDqg3-2026',coverage:'All 24 crisis countries. Up to 6 months of articles. Filterable by country and content type.',notes:'Powers the News & Alerts page with live pagination. Falls back to 12 verified static articles if API is unavailable.'},
+    {name:'World Bank Open Data',url:'https://data.worldbank.org',status:'✅ Live',statusBg:'#1a5c1a',data:'GDP per capita (NY.GDP.PCAP.CD), poverty headcount at $2.15/day, prevalence of undernourishment, total population.',auth:'None — public API',coverage:'All 24 crisis countries',notes:'Annual data. Most recent year available varies by country and indicator.'},
+    {name:'WFP HungerMap',url:'https://hungermap.wfp.org',status:'⚠ Static fallback',statusBg:'#8a6a00',data:'Food consumption scores, coping strategy index, import dependency ratios.',auth:'None required, but API returns 401/500',coverage:'Static dataset covers 9 countries with verified 2024–2026 figures',notes:'Live API is currently inaccessible. Static dataset used with amber banner disclaimer.'},
+    {name:'FAO FAOSTAT',url:'https://faostat.fao.org',status:'⚠ Static fallback',statusBg:'#8a6a00',data:'Prevalence of undernourishment, food supply per capita.',auth:'None — public API, but returns timeouts',coverage:'Static dataset covers all 24 countries with 2022–2023 figures',notes:'Covered by World Bank undernourishment indicator for most countries.'},
+    {name:'Global Hunger Index',url:'https://globalhungerindex.org',status:'✅ Static (annual)',statusBg:'#185FA5',data:'Composite GHI scores for 130+ countries based on undernourishment, child wasting, child stunting, and child mortality.',auth:'None — annual publication, static data',coverage:'All 24 crisis countries plus Watch List countries',notes:'Published annually by Welthungerhilfe and Concern Worldwide. 2023 edition used.'},
   ];
   const ipcPhases=[
-    ['1','Minimal','Households meet essential food and non-food needs without engaging in atypical strategies.'],
-    ['2','Stressed','Food consumption gaps are minimally adequate but unable to afford some essential non-food expenditures.'],
-    ['3','Crisis','Food consumption gaps result in high or above-usual acute malnutrition, or marginally able to meet minimum food needs only by depleting essential livelihood assets.'],
-    ['4','Emergency','Large food consumption gaps exist, resulting in very high acute malnutrition and excess mortality. Or loss of livelihood assets that leads to food consumption gaps.'],
-    ['5','Famine','Extreme food and other deprivation results in starvation, death, destitution and extremely critical acute malnutrition levels.'],
-  ];
-  const hdxEndpoints=[
-    ['food-security-nutrition-poverty/food-security','IPC phase population data at national and sub-national level, with current and projected periods'],
-    ['food-security-nutrition-poverty/food-prices-market-monitor','WFP commodity prices across 3,000+ markets, updated weekly'],
-    ['food-security-nutrition-poverty/poverty-rate','Oxford MPI poverty rate data'],
-    ['affected-people/idps','IOM Displacement Tracking Matrix — internally displaced persons'],
-    ['affected-people/refugees-persons-of-concern','UNHCR refugee and stateless persons data'],
-    ['affected-people/humanitarian-needs','OCHA humanitarian needs overview — people in need by sector'],
-  ];
-  const wbIndicators=[
-    ['NY.GDP.PCAP.CD','GDP per capita (current USD)'],
-    ['SI.POV.DDAY','Poverty headcount ratio at $2.15/day (% of population)'],
-    ['SN.ITK.DEFC.ZS','Prevalence of undernourishment (% of population)'],
-    ['SP.POP.TOTL','Total population'],
-  ];
-  const ghiScale=[
-    ['< 10','Low','var(--ipc1)'],
-    ['10–19.9','Moderate','var(--ipc2)'],
-    ['20–34.9','Serious','var(--ipc3)'],
-    ['35–49.9','Alarming','var(--ipc4)'],
-    ['≥ 50','Extremely Alarming','var(--ipc5)'],
+    {n:'1',label:'Minimal',desc:'Households meet essential food and non-food needs without engaging in atypical strategies.',bg:ipcColors[1],col:'rgba(0,0,0,.8)'},
+    {n:'2',label:'Stressed',desc:'Food consumption gaps are minimally adequate but unable to afford some essential non-food expenditures.',bg:ipcColors[2],col:'rgba(0,0,0,.8)'},
+    {n:'3',label:'Crisis',desc:'Food consumption gaps result in high or above-usual acute malnutrition.',bg:ipcColors[3],col:'white'},
+    {n:'4',label:'Emergency',desc:'Large food consumption gaps exist, resulting in very high acute malnutrition and excess mortality.',bg:ipcColors[4],col:'white'},
+    {n:'5',label:'Famine/Catastrophe',desc:'Extreme food and other deprivation results in starvation, death, and destitution.',bg:ipcColors[5],col:'white'},
   ];
   const limitations=[
-    ['Data lag','IPC assessments are published periodically — some country classifications may be 3–6 months old. The Hunger Index displays the most recent available assessment for each country.'],
-    ['Access constraints','In active conflict zones (North Darfur, parts of Gaza, Tigray), field data collection is severely limited. Figures for these areas carry higher uncertainty than stable contexts.'],
-    ['IPC coverage gaps','Countries without active IPC monitoring programs are represented through the Watch List using secondary data sources. These figures are directional rather than definitive.'],
-    ['HDX HAPI beta','HDX HAPI launched in June 2024 and is still expanding coverage. Some indicators are unavailable for certain countries. Missing data sections are hidden rather than shown as zero.'],
-    ['Currency and market data','Food price data reflects market prices at the time of WFP monitoring visits. Prices in conflict zones may not reflect actual consumer prices due to market disruption.'],
-    ['Live API availability','Several APIs (WFP HungerMap, ReliefWeb) have intermittent availability. When live data is unavailable, the dashboard falls back to verified static datasets with clear attribution.'],
+    ['IPC coverage gaps','Countries without active IPC monitoring programs are represented through the Watch List using secondary data sources. Figures for these areas carry higher uncertainty than IPC-classified data.'],
+    ['HDX displacement coverage','IOM DTM (Displacement Tracking Matrix) data via HDX HAPI is only available for countries with active IOM field operations. UNHCR annual statistics are used as a fallback for the remaining countries.'],
+    ['WFP HungerMap unavailable','The WFP HungerMap API currently returns authentication errors. A verified static dataset covering 9 countries is used in its place, shown with an amber disclaimer banner.'],
+    ['Conflict-zone data uncertainty','In active conflict areas (Sudan, Gaza Strip, South Sudan, Tigray), field data collection is severely limited. Figures carry higher uncertainty than stable contexts.'],
+    ['OCHA FTS coverage','Not all crisis countries have active UN humanitarian response plans. Countries without plans will not show funding data in their profiles.'],
+    ['HDX HAPI beta status','HDX HAPI launched in 2024 and is still expanding coverage. Some indicators are unavailable for certain countries — when data is unavailable the relevant section is hidden rather than shown as empty.'],
+    ['IPC API local dev','The IPC API returns HTTP 406 in local development environments due to Cloudflare bot protection. The live Netlify deployment works correctly.'],
+    ['Time lag','IPC analyses are published every 3–6 months per country. Between publications, displayed figures represent the most recent available classification. The reference period is shown in each country profile.'],
   ];
 
   const mono="font-family:'IBM Plex Mono',monospace;";
@@ -2835,105 +2928,91 @@ function initAbout(){
   const gray5='color:var(--gray-500);';
   const gray7='color:var(--gray-700);';
 
-  let h='<div style="max-width:860px;margin:0 auto;padding:40px 40px 80px;">';
+  let h='<div style="max-width:860px;margin:0 auto;padding:32px 32px 80px;">';
 
   // Header
-  h+='<div style="border-bottom:2px solid var(--ink);padding-bottom:24px;margin-bottom:40px;">'
-    +'<div style="'+mono+'font-size:.6rem;letter-spacing:.2em;text-transform:uppercase;'+gray5+'margin-bottom:12px;">Methodology &amp; Data Sources</div>'
-    +'<h1 style="'+playfair+'font-weight:900;font-size:2.8rem;line-height:1.1;margin-bottom:16px;">How The Hunger Index Works</h1>'
-    +'<p style="'+serif+'font-size:1.05rem;line-height:1.7;'+gray7+'max-width:640px;">The Hunger Index aggregates data from nine independent humanitarian, academic, and intergovernmental sources to build the most comprehensive publicly accessible food security dashboard available. This page documents every data source, methodology decision, and known limitation.</p>'
+  h+='<div style="margin-bottom:40px;">'
+    +'<div style="'+mono+'font-size:.58rem;letter-spacing:.2em;text-transform:uppercase;'+gray5+'margin-bottom:8px;">Methodology</div>'
+    +'<h1 style="'+playfair+'font-weight:900;font-size:2.4rem;line-height:1.1;margin-bottom:16px;">How The Hunger Index Works</h1>'
+    +'<p style="'+serif+'font-size:1rem;line-height:1.75;'+gray7+'">The Hunger Index is an independent, open-source dashboard aggregating data from nine humanitarian, academic, and intergovernmental sources. It is not affiliated with any UN agency, NGO, or government body. All data is sourced directly from the organizations listed below and displayed as-is, without modification.</p>'
     +'</div>';
 
-  // Sources table
-  h+='<div style="margin-bottom:48px;">'
-    +'<h2 style="'+playfair+'font-weight:700;font-size:1.6rem;margin-bottom:20px;">Data Sources at a Glance</h2>'
-    +'<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:.82rem;">'
-    +'<thead><tr style="border-bottom:2px solid var(--ink);">'
-    +['Source','Data provided','Update frequency','Auth required','Status'].map(h=>'<th style="'+mono+'font-size:.58rem;letter-spacing:.1em;text-transform:uppercase;padding:10px 12px;text-align:left;">'+h+'</th>').join('')
-    +'</tr></thead><tbody>'
-    +sources.map(([src,data,freq,auth,status])=>'<tr style="border-bottom:0.5px solid var(--gray-100);">'
-      +'<td style="padding:10px 12px;'+mono+'font-size:.7rem;font-weight:500;">'+src+'</td>'
-      +'<td style="padding:10px 12px;'+serif+gray7+'">'+data+'</td>'
-      +'<td style="padding:10px 12px;'+mono+'font-size:.65rem;'+gray5+'">'+freq+'</td>'
-      +'<td style="padding:10px 12px;'+mono+'font-size:.65rem;'+gray5+'">'+auth+'</td>'
-      +'<td style="padding:10px 12px;'+mono+'font-size:.65rem;color:'+(status.includes('✓')?'var(--green-mid)':status.includes('Pending')?'var(--ipc3)':'var(--gray-500)')+';">'+status+'</td>'
-      +'</tr>').join('')
-    +'</tbody></table></div></div>';
-
-  // IPC classification
-  h+='<div style="margin-bottom:48px;padding:32px;background:var(--white);border:var(--border);border-left:4px solid var(--ipc4);">'
-    +'<h2 style="'+playfair+'font-weight:700;font-size:1.5rem;margin-bottom:16px;">The IPC Classification System</h2>'
-    +'<p style="'+serif+'font-size:.95rem;line-height:1.75;'+gray7+'margin-bottom:16px;">The Integrated Food Security Phase Classification (IPC) is the global standard for measuring acute food insecurity. Developed by a partnership of UN agencies, NGOs, and governments, IPC provides a common framework for classifying the severity of food crises on a 5-phase scale.</p>'
-    +'<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:20px;">'
-    +ipcPhases.map(([phase,label,desc])=>'<div style="background:'+ipcColors[phase]+';padding:12px;border-radius:4px;">'
-      +'<div style="'+mono+'font-size:.55rem;font-weight:500;color:'+(parseInt(phase)>=3?'rgba(255,255,255,.9)':'rgba(0,0,0,.7)')+';text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px;">Phase '+phase+'</div>'
-      +'<div style="'+playfair+'font-weight:700;font-size:.85rem;color:'+(parseInt(phase)>=3?'white':'rgba(0,0,0,.85)')+';margin-bottom:6px;">'+label+'</div>'
-      +'<div style="'+serif+'font-size:.7rem;line-height:1.5;color:'+(parseInt(phase)>=3?'rgba(255,255,255,.8)':'rgba(0,0,0,.6)')+';">'+desc+'</div>'
+  // IPC Classification
+  h+='<div style="padding:28px;background:var(--white);border:var(--border);border-left:4px solid var(--ipc4);margin-bottom:24px;">'
+    +'<h2 style="'+playfair+'font-weight:700;font-size:1.5rem;margin-bottom:12px;">The IPC Classification System</h2>'
+    +'<p style="'+serif+'font-size:.9rem;line-height:1.75;'+gray7+'margin-bottom:20px;">The Integrated Food Security Phase Classification (IPC) is the global standard for measuring acute food insecurity. Developed by a partnership of UN agencies, NGOs, and governments, it provides a common 5-phase framework used in 30+ countries. As of 2026, the IPC API provides the Hunger Index with official, real-time phase classifications.</p>'
+    +'<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:16px;">'
+    +ipcPhases.map(p=>'<div style="background:'+p.bg+';color:'+p.col+';padding:12px;border-radius:3px;">'
+      +'<div style="'+mono+'font-size:.5rem;letter-spacing:.1em;text-transform:uppercase;opacity:.8;margin-bottom:4px;">Phase '+p.n+'</div>'
+      +'<div style="'+playfair+'font-weight:700;font-size:.9rem;margin-bottom:6px;">'+p.label+'</div>'
+      +'<div style="'+serif+'font-size:.72rem;line-height:1.5;opacity:.9;">'+p.desc+'</div>'
       +'</div>').join('')
     +'</div>'
-    +'<p style="'+mono+'font-size:.6rem;'+gray5+'line-height:1.6;">Source: Integrated Food Security Phase Classification &middot; ipcinfo.org &middot; The IPC scale was developed in 2004 and is now used by 70+ countries.</p>'
+    +'<p style="'+mono+'font-size:.55rem;'+gray5+'">Source: Integrated Food Security Phase Classification &middot; ipcinfo.org &middot; The IPC scale was developed in 2004 and is now used in 30+ countries.</p>'
     +'</div>';
 
-  // IPC coverage gap + watch list
-  h+='<div style="margin-bottom:48px;padding:32px;background:var(--white);border:var(--border);border-left:4px solid #f9e04b;">'
-    +'<h2 style="'+playfair+'font-weight:700;font-size:1.5rem;margin-bottom:16px;">The IPC Coverage Gap &amp; The Watch List</h2>'
-    +'<p style="'+serif+'font-size:.95rem;line-height:1.75;'+gray7+'margin-bottom:14px;">The IPC system is only applied in countries where UN agencies and NGOs have active, funded monitoring programs. This creates systematic blind spots — countries with documented, severe food insecurity that never appear in IPC assessments because of political access restrictions, donor funding priorities, or government refusal to accept independent assessments.</p>'
-    +'<p style="'+serif+'font-size:.95rem;line-height:1.75;'+gray7+'margin-bottom:14px;">Notable examples include Cuba (37.8% food insecurity per USAID), Venezuela (32.3% per FAO/ENCOVI), North Korea (42.4% per FAO/WFP estimates), and Eritrea (67% undernourishment per FAO) — none of which have been formally IPC-classified.</p>'
-    +'<p style="'+serif+'font-size:.95rem;line-height:1.75;'+gray7+'margin-bottom:14px;">The Hunger Index addresses this gap through a secondary tier called the <strong>Food Security Watch List</strong>. Watch List countries are identified using FAO FAOSTAT undernourishment prevalence data, USAID Food Security reports, and peer-reviewed assessments from the Global Hunger Index. Watch List entries are visually distinguished using amber markers and explicit source attribution.</p>'
-    +'<div style="background:var(--gray-100);padding:16px;border-radius:4px;'+mono+'font-size:.62rem;line-height:1.7;'+gray7+'"><strong style="color:var(--ink);">Confidence note:</strong> Watch List data carries lower confidence intervals than IPC-classified data. IPC assessments involve field surveys, satellite imagery, and multi-agency validation. Watch List data is drawn from national surveys, remote sensing, and secondary analysis — rigorous but less granular.</div>'
+  // Data Sources (detailed cards)
+  h+='<div style="padding:28px;background:var(--white);border:var(--border);margin-bottom:24px;">'
+    +'<h2 style="'+playfair+'font-weight:700;font-size:1.5rem;margin-bottom:8px;">Data Sources</h2>'
+    +'<p style="'+serif+'font-size:.9rem;line-height:1.75;'+gray7+'margin-bottom:20px;">All data is fetched in real time through Netlify serverless functions acting as API proxies. Data is cached in browser memory for the session. Where live data is unavailable, verified static datasets are used with an amber disclaimer banner.</p>'
+    +sources.map(s=>'<div style="padding:16px 0;border-bottom:var(--border);">'
+      +'<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:8px;">'
+      +'<a href="'+s.url+'" target="_blank" rel="noopener" style="'+playfair+'font-weight:700;font-size:1rem;color:var(--ink);text-decoration:none;">'+s.name+' &#x2197;</a>'
+      +'<span style="'+mono+'font-size:.52rem;background:'+s.statusBg+';color:white;padding:2px 8px;border-radius:2px;white-space:nowrap;flex-shrink:0;">'+s.status+'</span>'
+      +'</div>'
+      +'<div style="display:grid;grid-template-columns:80px 1fr;gap:4px 16px;">'
+      +'<div style="'+mono+'font-size:.52rem;'+gray5+'padding-top:2px;">Data</div><div style="'+serif+'font-size:.82rem;line-height:1.6;'+gray7+'">'+s.data+'</div>'
+      +'<div style="'+mono+'font-size:.52rem;'+gray5+'padding-top:2px;">Auth</div><div style="'+mono+'font-size:.58rem;color:var(--gray-600);">'+s.auth+'</div>'
+      +'<div style="'+mono+'font-size:.52rem;'+gray5+'padding-top:2px;">Coverage</div><div style="'+mono+'font-size:.58rem;color:var(--gray-600);">'+s.coverage+'</div>'
+      +'<div style="'+mono+'font-size:.52rem;'+gray5+'padding-top:2px;">Notes</div><div style="'+serif+'font-size:.8rem;font-style:italic;color:var(--gray-500);">'+s.notes+'</div>'
+      +'</div></div>').join('')
     +'</div>';
 
-  // HDX HAPI
-  h+='<div style="margin-bottom:48px;padding:32px;background:var(--white);border:var(--border);border-left:4px solid var(--blue-mid);">'
-    +'<h2 style="'+playfair+'font-weight:700;font-size:1.5rem;margin-bottom:16px;">HDX HAPI — Humanitarian Data Exchange API</h2>'
-    +'<p style="'+serif+'font-size:.95rem;line-height:1.75;'+gray7+'margin-bottom:14px;">The HDX Humanitarian API (HAPI), launched by OCHA\'s Centre for Humanitarian Data in June 2024, provides standardized access to 44+ indicators across 25+ humanitarian operations. The Hunger Index uses HDX HAPI as its primary source for sub-national food security data, food market prices, and displacement figures.</p>'
-    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">'
-    +hdxEndpoints.map(([ep,desc])=>'<div style="background:var(--gray-100);padding:12px;border-radius:4px;">'
-      +'<div style="'+mono+'font-size:.55rem;color:var(--blue-mid);margin-bottom:4px;">'+ep+'</div>'
-      +'<div style="'+serif+'font-size:.78rem;line-height:1.5;'+gray7+'">'+desc+'</div>'
+  // Country Coverage
+  h+='<div style="padding:28px;background:var(--white);border:var(--border);margin-bottom:24px;">'
+    +'<h2 style="'+playfair+'font-weight:700;font-size:1.5rem;margin-bottom:12px;">Country Coverage &amp; Watch List</h2>'
+    +'<p style="'+serif+'font-size:.9rem;line-height:1.75;'+gray7+'margin-bottom:16px;">The dashboard tracks <strong>24 primary crisis countries</strong> with active IPC monitoring programs, selected based on IPC phase classifications of 3 or above as of the most recent reporting period.</p>'
+    +'<p style="'+serif+'font-size:.9rem;line-height:1.75;'+gray7+'margin-bottom:16px;">A secondary <strong>Watch List</strong> tracks countries with documented food insecurity outside formal IPC monitoring — either lacking active IPC technical working groups, or where data collection is severely restricted by conflict or political access limitations. Watch List figures are directional rather than definitive.</p>'
+    +'<div style="padding:14px;background:#fffbeb;border:1px solid #f5a12e;border-radius:3px;">'
+    +'<div style="'+mono+'font-size:.55rem;letter-spacing:.1em;text-transform:uppercase;color:#8a6a00;margin-bottom:6px;">Watch List Countries</div>'
+    +'<div style="'+serif+'font-size:.85rem;'+gray7+'">Cuba, Venezuela, North Korea, Eritrea, Guatemala, Honduras, Nicaragua — documented food insecurity indicators but no active IPC monitoring programs.</div>'
+    +'</div></div>';
+
+  // Known Limitations
+  h+='<div style="padding:28px;background:var(--white);border:var(--border);margin-bottom:24px;">'
+    +'<h2 style="'+playfair+'font-weight:700;font-size:1.5rem;margin-bottom:12px;">Known Limitations</h2>'
+    +'<div style="display:flex;flex-direction:column;gap:14px;">'
+    +limitations.map(([label,desc])=>'<div style="display:flex;gap:16px;">'
+      +'<div style="'+mono+'font-size:.55rem;letter-spacing:.06em;color:var(--gray-400);min-width:160px;padding-top:3px;flex-shrink:0;">'+label+'</div>'
+      +'<div style="'+serif+'font-size:.87rem;line-height:1.65;'+gray7+'">'+desc+'</div>'
       +'</div>').join('')
-    +'</div>'
-    +'<p style="'+mono+'font-size:.6rem;'+gray5+'">HDX HAPI is in beta. Coverage varies by country — when data is unavailable, the relevant section is hidden rather than shown as empty.</p>'
-    +'</div>';
+    +'</div></div>';
 
-  // World Bank
-  h+='<div style="margin-bottom:48px;padding:32px;background:var(--white);border:var(--border);">'
-    +'<h2 style="'+playfair+'font-weight:700;font-size:1.5rem;margin-bottom:16px;">World Bank Open Data</h2>'
-    +'<p style="'+serif+'font-size:.95rem;line-height:1.75;'+gray7+'margin-bottom:14px;">Four World Bank indicators are fetched for each crisis country via the World Bank Open Data API:</p>'
+  // Technical Architecture
+  h+='<div style="padding:28px;background:var(--white);border:var(--border);margin-bottom:24px;">'
+    +'<h2 style="'+playfair+'font-weight:700;font-size:1.5rem;margin-bottom:12px;">Technical Architecture</h2>'
+    +'<p style="'+serif+'font-size:.9rem;line-height:1.75;'+gray7+'margin-bottom:16px;">A single-file HTML application — all CSS, JavaScript, and HTML embedded in <code>index.html</code> with no build step or framework. API calls are proxied through Netlify serverless functions to handle CORS restrictions and protect API keys.</p>'
+    +'<div style="background:var(--gray-100);padding:16px;border-radius:3px;'+mono+'font-size:.65rem;line-height:1.8;'+gray7+'margin-bottom:16px;">'
+    +'Browser → /api/hdx?iso3=SDN<br>&nbsp;&nbsp;→ /.netlify/functions/hdx (server-side proxy)<br>&nbsp;&nbsp;→ HDX HAPI + UNHCR + OCHA FTS (parallel requests)<br>&nbsp;&nbsp;→ Normalized JSON response → Browser'
+    +'</div>'
     +'<div style="display:flex;flex-direction:column;gap:8px;">'
-    +wbIndicators.map(([code,desc])=>'<div style="padding:10px;background:var(--gray-100);border-radius:4px;">'
-      +'<code style="'+mono+'font-size:.58rem;color:var(--blue-mid);display:block;margin-bottom:4px;">'+code+'</code>'
-      +'<div style="'+serif+'font-size:.8rem;'+gray7+'">'+desc+'</div>'
-      +'</div>').join('')
-    +'</div></div>';
-
-  // GHI
-  h+='<div style="margin-bottom:48px;padding:32px;background:var(--white);border:var(--border);">'
-    +'<h2 style="'+playfair+'font-weight:700;font-size:1.5rem;margin-bottom:16px;">Global Hunger Index</h2>'
-    +'<p style="'+serif+'font-size:.95rem;line-height:1.75;'+gray7+'margin-bottom:14px;">The Global Hunger Index (GHI), published annually by Welthungerhilfe and Concern Worldwide, measures hunger across four component indicators: undernourishment, child wasting, child stunting, and child mortality. GHI scores are incorporated into country profiles as a complementary measure to IPC phase classifications.</p>'
-    +'<div style="display:flex;gap:8px;flex-wrap:wrap;">'
-    +ghiScale.map(([range,label,color])=>'<div style="display:flex;align-items:center;gap:6px;padding:6px 10px;background:'+color+';border-radius:4px;">'
-      +'<span style="'+mono+'font-size:.6rem;color:white;">'+range+'</span>'
-      +'<span style="'+mono+'font-size:.6rem;color:rgba(255,255,255,.8);">= '+label+'</span>'
-      +'</div>').join('')
-    +'</div></div>';
-
-  // Limitations
-  h+='<div style="margin-bottom:48px;padding:32px;background:var(--white);border:var(--border);border-left:4px solid var(--ipc3);">'
-    +'<h2 style="'+playfair+'font-weight:700;font-size:1.5rem;margin-bottom:16px;">Known Limitations</h2>'
-    +'<div style="display:flex;flex-direction:column;gap:16px;">'
-    +limitations.map(([title,desc])=>'<div style="display:flex;gap:16px;padding-bottom:16px;border-bottom:0.5px solid var(--gray-100);">'
-      +'<div style="'+mono+'font-size:.62rem;font-weight:500;color:var(--ink);min-width:140px;padding-top:2px;">'+title+'</div>'
-      +'<div style="'+serif+'font-size:.88rem;line-height:1.65;'+gray7+'">'+desc+'</div>'
+    +[['Frontend','Single-file HTML · Chart.js 4.4.0 · globe.gl · Anime.js 3.2.1'],
+      ['Typography','Playfair Display (display) · IBM Plex Mono (data/labels) · Source Serif 4 (body)'],
+      ['Hosting','Netlify (auto-deploy from GitHub main branch)'],
+      ['Functions','Netlify Functions (Node 18, CommonJS) — hdx.js · ipc.js · news.js · wfp.js'],
+      ['GitHub','github.com/mcanning818/hunger-index (public)'],
+    ].map(([label,val])=>'<div style="display:flex;gap:12px;">'
+      +'<div style="'+mono+'font-size:.55rem;'+gray5+'min-width:100px;padding-top:2px;">'+label+'</div>'
+      +'<div style="'+mono+'font-size:.58rem;color:var(--gray-700);">'+val+'</div>'
       +'</div>').join('')
     +'</div></div>';
 
   // About
-  h+='<div style="padding:32px;background:var(--ink);color:var(--white);border-radius:4px;">'
-    +'<h2 style="'+playfair+'font-weight:700;font-size:1.5rem;margin-bottom:16px;color:var(--white);">About This Project</h2>'
-    +'<p style="'+serif+'font-size:.95rem;line-height:1.75;color:var(--gray-300);margin-bottom:14px;">The Hunger Index is an open-source public dashboard built to make humanitarian food security data accessible to general audiences, journalists, researchers, and policy advocates. It is not affiliated with any UN agency, NGO, or government body.</p>'
-    +'<p style="'+serif+'font-size:.95rem;line-height:1.75;color:var(--gray-300);margin-bottom:20px;">Built by Mikah Canning, student at Tulane University. Source code available on GitHub.</p>'
-    +'<a href="https://github.com/mcanning818/hunger-index" target="_blank" rel="noopener noreferrer" style="display:inline-block;'+mono+'font-size:.65rem;letter-spacing:.1em;text-transform:uppercase;color:var(--white);border:1px solid rgba(255,255,255,.3);padding:10px 20px;text-decoration:none;">View Source on GitHub &#x2197;</a>'
+  h+='<div style="padding:28px;background:var(--white);border:var(--border);margin-bottom:24px;">'
+    +'<h2 style="'+playfair+'font-weight:700;font-size:1.5rem;margin-bottom:12px;">About This Project</h2>'
+    +'<p style="'+serif+'font-size:.9rem;line-height:1.75;'+gray7+'margin-bottom:12px;">The Hunger Index was built by Mikah Canning, a Political Economy and International Development student at Tulane University. The project addresses a gap in the academic and humanitarian space: food security data from WFP, OCHA, IPC, and HDX is publicly available but scattered across agency portals not designed for general audiences.</p>'
+    +'<p style="'+serif+'font-size:.9rem;line-height:1.75;'+gray7+'margin-bottom:12px;">This dashboard aggregates that data into a single, accessible interface — connecting conflict data, food security classifications, displacement figures, and humanitarian funding gaps in a way that shows how these crises are structurally related.</p>'
+    +'<p style="'+serif+'font-size:.9rem;line-height:1.75;'+gray7+'">Questions or data corrections: <a href="mailto:mikahcanning@gmail.com" style="color:var(--blue-mid);">mikahcanning@gmail.com</a> &nbsp;·&nbsp; <a href="https://github.com/mcanning818/hunger-index" target="_blank" rel="noopener" style="color:var(--blue-mid);">GitHub &#x2197;</a></p>'
     +'</div>';
 
   h+='</div>';

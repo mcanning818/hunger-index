@@ -64,6 +64,31 @@ exports.handler = async function(event, context) {
     })
   );
 
+  // UNHCR: IDPs and Refugees by country of origin (no auth required)
+  const unhcrResults=await Promise.allSettled([
+    fetch(`https://api.unhcr.org/population/v1/idps/?coo=${iso3}&limit=10&yearFrom=2019`,{headers:{'Accept':'application/json'},signal:AbortSignal.timeout(10000)}).then(r=>r.ok?r.json():null).catch(()=>null),
+    fetch(`https://api.unhcr.org/population/v1/refugees/?coo=${iso3}&limit=10&yearFrom=2019`,{headers:{'Accept':'application/json'},signal:AbortSignal.timeout(10000)}).then(r=>r.ok?r.json():null).catch(()=>null),
+  ]);
+  const unhcrIdps=unhcrResults[0].status==='fulfilled'?unhcrResults[0].value:null;
+  const unhcrRefugees=unhcrResults[1].status==='fulfilled'?unhcrResults[1].value:null;
+  console.log(`[UNHCR] ${iso3} — IDPs: ${unhcrIdps?.items?.length||0} records, Refugees: ${unhcrRefugees?.items?.length||0} records`);
+  results.unhcr_idps=unhcrIdps?.items||[];
+  results.unhcr_refugees=unhcrRefugees?.items||[];
+
+  // OCHA FTS: humanitarian response plan funding (no auth required)
+  const FTS_COUNTRY_IDS={'SDN':232,'SSD':218,'PSE':171,'YEM':257,'HTI':97,'COD':42,'AFG':1,'ETH':66,'MLI':140,'SOM':213,'MMR':153,'SYR':225,'NGA':164,'ZWE':261,'CMR':30,'TCD':39,'KEN':113,'BFA':24,'LBN':122,'COL':43,'MOZ':152,'TJK':228,'GTM':90,'BDI':26};
+  const ftsId=FTS_COUNTRY_IDS[iso3.toUpperCase()];
+  if(ftsId){
+    try{
+      const ftsR=await fetch(`https://api.fts.unocha.org/v2/fts/flow/country/${ftsId}?groupby=plan&year=2024,2025`,{headers:{'Accept':'application/json'},signal:AbortSignal.timeout(10000)});
+      if(ftsR.ok){
+        const ftsData=await ftsR.json();
+        results.fts_funding=ftsData?.data?.report3?.fundingTotals?.objects?.[0]?.singleFundingObjects||[];
+        console.log(`[FTS] ${iso3} — ${results.fts_funding.length} funding records`);
+      }else{results.fts_funding=[];}
+    }catch(err){console.warn(`[FTS] ${iso3} failed:`,err.message);results.fts_funding=[];}
+  }else{results.fts_funding=[];}
+
   return {
     statusCode: 200,
     headers,
