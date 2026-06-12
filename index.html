@@ -776,6 +776,7 @@ const ipcColors={1:'#f9e04b',2:'#f5a12e',3:'#e2591a',4:'#bb2c0b',5:'#5e0606'};
 const ipcLabels={1:'IPC 1 — Minimal',2:'IPC 2 — Stressed',3:'IPC 3 — Crisis',4:'IPC 4 — Emergency',5:'IPC 5 — Famine'};
 let mapInstance=null, currentFilter='all', mapMarkers=[];
 let WFP_DATA={}, WORLDBANK_DATA={}, UNHCR_DATA={}, HDX_DATA={}, IPC_DATA={};
+let ipcLiveCountries=0;
 let _mapSearchMatches=[];
 let trendsInitialized=false;
 let newsInitialized=false;
@@ -2006,15 +2007,23 @@ async function fetchIPCData(countryName){
   const iso3=ISO3[countryName];
   if(!iso3) return null;
   try{
-    const r=await fetch('/.netlify/functions/ipc?iso3='+iso3,{signal:AbortSignal.timeout(20000)});
+    const r=await fetch('/.netlify/functions/ipc?iso3='+iso3,{signal:AbortSignal.timeout(15000)});
     if(!r.ok) return null;
     const result=await r.json();
-    if(result.status==='live'&&result.data){
+    if(result.status==='live'&&result.data?.current){
       IPC_DATA[countryName]=result.data;
-      console.log('[IPC] Loaded data for '+countryName);
-      return IPC_DATA[countryName];
+      console.log('[IPC] Live data for '+countryName+' — P3+: '+(result.data.current.phase3plus?.toLocaleString()));
+      ipcLiveCountries++;
+      if(ipcLiveCountries===1){
+        console.log('[IPC] First live country loaded — IPC is live');
+        const el=document.getElementById('ipcStatusIndicator');
+        if(el){el.textContent='● IPC Live';el.style.color='var(--green-mid)';}
+      }
+      return result.data;
+    }else{
+      console.log('[IPC] No live data for '+countryName+' — using static');
+      return null;
     }
-    return null;
   }catch(err){
     console.warn('[IPC] Failed for '+countryName+':',err.message);
     return null;
@@ -2031,25 +2040,34 @@ async function fetchAllIPCData(){
   console.log('[IPC] All country data fetched');
 }
 
+function getIPCPhaseData(countryName){
+  const live=IPC_DATA[countryName];
+  if(live?.current&&live.current.total>0){
+    return{source:'IPC API (Live)',phase3plus:live.current.phase3plus,phase4:live.current.p4,phase5:live.current.p5,total:live.current.total,overallPhase:live.current.overallPhase,period:live.referencePeriod||'Latest',isLive:true};
+  }
+  const hdx=HDX_DATA[countryName];
+  if(hdx?.food_security?.length>0){
+    const fs=hdx.food_security.filter(r=>r.ipc_type==='current'&&Number(r.admin_level)===0);
+    const p3=fs.filter(r=>Number(r.ipc_phase)===3).reduce((s,r)=>s+(r.population_in_phase||0),0);
+    const p4=fs.filter(r=>Number(r.ipc_phase)===4).reduce((s,r)=>s+(r.population_in_phase||0),0);
+    const p5=fs.filter(r=>Number(r.ipc_phase)===5).reduce((s,r)=>s+(r.population_in_phase||0),0);
+    return{source:'HDX HAPI',phase3plus:p3+p4+p5,phase4:p4,phase5:p5,total:p3+p4+p5,overallPhase:p5>1000?5:p4>10000?4:p3>50000?3:2,period:'Latest',isLive:false};
+  }
+  const staticData=CRISIS_DATA.find(d=>d.country===countryName);
+  return staticData?{source:'Static (2024)',phase3plus:null,phase4:null,phase5:null,overallPhase:staticData.ipc,isLive:false}:null;
+}
+
 function updateOverviewStats(){
   let totalPhase4=0,totalPhase5=0,totalPhase3plus=0,activeZones=0;
   CRISIS_DATA.forEach(d=>{
-    const hdx=HDX_DATA[d.country];
-    if(!hdx||!hdx.food_security||hdx.food_security.length===0) return;
-    const allL0=hdx.food_security.filter(r=>Number(r.admin_level)===0);
-    const currentPref=allL0.filter(r=>r.ipc_type==='current');
-    const currentData=(currentPref.length>0?currentPref:allL0)
-      .sort((a,b)=>new Date(b.reference_period_start)-new Date(a.reference_period_start));
-    if(currentData.length===0) return;
-    activeZones++;
-    const latestDate=currentData[0].reference_period_start;
-    currentData.filter(r=>r.reference_period_start===latestDate).forEach(r=>{
-      const pop=r.population_in_phase||0;
-      const ph=Number(r.ipc_phase);
-      if(ph===4) totalPhase4+=pop;
-      if(ph===5) totalPhase5+=pop;
-      if(ph>=3) totalPhase3plus+=pop;
-    });
+    const ipcData=getIPCPhaseData(d.country);
+    if(!ipcData) return;
+    if(ipcData.phase3plus>0){
+      totalPhase3plus+=ipcData.phase3plus;
+      activeZones++;
+    }
+    if(ipcData.phase4>0) totalPhase4+=ipcData.phase4;
+    if(ipcData.phase5>0) totalPhase5+=ipcData.phase5;
   });
   function fmtNum(n){
     if(!n||n===0) return null;
@@ -2184,7 +2202,11 @@ function buildProfileHTML(d){
   const totalInNeed=(hdx.needs||[]).reduce((s,r)=>s+(r.population_in_need||0),0);
 
   // IPC official dates
-  const ipcCurrentPhase=ipc?(ipc.current_period_dates||null):null;
+  const ipcCurrentPhase=ipc?(ipc.referencePeriod||ipc.current_period_dates||null):null;
+  const ipcPhaseData=getIPCPhaseData(d.country);
+  const sourceBadge=ipcPhaseData?.isLive
+    ?'<span style="font-family:\'IBM Plex Mono\',monospace;font-size:.5rem;background:#1a5c1a;color:white;padding:2px 6px;border-radius:2px;letter-spacing:.08em;">&#x25CF; IPC LIVE</span>'
+    :'<span style="font-family:\'IBM Plex Mono\',monospace;font-size:.5rem;background:var(--gray-300);color:var(--gray-600);padding:2px 6px;border-radius:2px;letter-spacing:.08em;">HDX / STATIC</span>';
 
   function gaugeBar(value,min,max,label,unit){
     unit=unit||'%';
@@ -2216,18 +2238,21 @@ function buildProfileHTML(d){
   }
 
   // Section 1: IPC Classification
-  const fsPhaseHTML=fsPhases.some(r=>r.pop>0)?
-    '<div style="font-family:\'IBM Plex Mono\',monospace;font-size:.55rem;letter-spacing:.1em;text-transform:uppercase;color:var(--gray-500);margin-bottom:10px;">Population by phase — HDX HAPI</div>'
-    +fsPhases.map(r=>r.pop>0?
-      '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">'
-      +'<div style="font-family:\'IBM Plex Mono\',monospace;font-size:.58rem;color:white;background:'+ipcColors[r.phase]+';padding:2px 6px;border-radius:2px;min-width:48px;text-align:center;">P'+r.phase+'</div>'
-      +'<div style="flex:1;background:var(--gray-100);height:8px;border-radius:4px;position:relative;">'
-      +'<div style="position:absolute;left:0;top:0;height:8px;width:'+r.frac+'%;background:'+ipcColors[r.phase]+';border-radius:4px;"></div></div>'
-      +'<div style="font-family:\'IBM Plex Mono\',monospace;font-size:.58rem;color:var(--gray-700);min-width:80px;text-align:right;">'+(r.pop/1e6).toFixed(2)+'M · '+r.frac+'%</div></div>':'').join('')
-    :'';
+  let fsPhaseHTML='';
+  if(ipcPhaseData?.isLive&&ipc?.current){
+    const livePhases=[{phase:3,pop:ipc.current.p3||0},{phase:4,pop:ipc.current.p4||0},{phase:5,pop:ipc.current.p5||0}];
+    const liveTotal=ipc.current.total||1;
+    if(livePhases.some(r=>r.pop>0)){
+      fsPhaseHTML='<div style="font-family:\'IBM Plex Mono\',monospace;font-size:.55rem;letter-spacing:.1em;text-transform:uppercase;color:var(--gray-500);margin-bottom:10px;">Population by phase — IPC API (Live)</div>'
+        +livePhases.filter(r=>r.pop>0).map(r=>{const frac=Math.min(100,((r.pop/liveTotal)*100)).toFixed(1);return'<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">'+'<div style="font-family:\'IBM Plex Mono\',monospace;font-size:.58rem;color:white;background:'+ipcColors[r.phase]+';padding:2px 6px;border-radius:2px;min-width:48px;text-align:center;">P'+r.phase+'</div>'+'<div style="flex:1;background:var(--gray-100);height:8px;border-radius:4px;position:relative;">'+'<div style="position:absolute;left:0;top:0;height:8px;width:'+frac+'%;background:'+ipcColors[r.phase]+';border-radius:4px;"></div></div>'+'<div style="font-family:\'IBM Plex Mono\',monospace;font-size:.58rem;color:var(--gray-700);min-width:80px;text-align:right;">'+(r.pop/1e6).toFixed(2)+'M · '+frac+'%</div></div>';}).join('');
+    }
+  }else if(fsPhases.some(r=>r.pop>0)){
+    fsPhaseHTML='<div style="font-family:\'IBM Plex Mono\',monospace;font-size:.55rem;letter-spacing:.1em;text-transform:uppercase;color:var(--gray-500);margin-bottom:10px;">Population by phase — HDX HAPI</div>'
+      +fsPhases.map(r=>r.pop>0?'<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">'+'<div style="font-family:\'IBM Plex Mono\',monospace;font-size:.58rem;color:white;background:'+ipcColors[r.phase]+';padding:2px 6px;border-radius:2px;min-width:48px;text-align:center;">P'+r.phase+'</div>'+'<div style="flex:1;background:var(--gray-100);height:8px;border-radius:4px;position:relative;">'+'<div style="position:absolute;left:0;top:0;height:8px;width:'+r.frac+'%;background:'+ipcColors[r.phase]+';border-radius:4px;"></div></div>'+'<div style="font-family:\'IBM Plex Mono\',monospace;font-size:.58rem;color:var(--gray-700);min-width:80px;text-align:right;">'+(r.pop/1e6).toFixed(2)+'M · '+r.frac+'%</div></div>':'').join('');
+  }
 
   const ipcSection=accordion('IPC Classification','🔴',
-    '<span style="background:'+ipcColors[d.ipc]+';color:white;font-family:\'IBM Plex Mono\',monospace;font-size:.52rem;padding:3px 8px;border-radius:2px;">'+d.severity+'</span>',
+    '<span style="background:'+ipcColors[d.ipc]+';color:white;font-family:\'IBM Plex Mono\',monospace;font-size:.52rem;padding:3px 8px;border-radius:2px;">'+d.severity+'</span>'+sourceBadge,
     'Phase '+d.ipc+' · '+d.population+' people affected',
     '<div style="margin-top:16px;">'
     +'<div style="background:var(--gray-100);border-left:3px solid '+ipcColors[d.ipc]+';padding:12px 16px;margin-bottom:16px;font-family:\'Source Serif 4\',serif;font-size:.9rem;line-height:1.6;color:var(--ink);">'

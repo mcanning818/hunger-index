@@ -28,7 +28,7 @@ The Hunger Index aggregates data from nine independent humanitarian, academic, a
 
 | Source | Data | Auth | Status |
 |--------|------|------|--------|
-| [IPC](https://ipcinfo.org) | Official phase classifications, population per phase, projections | API key | ⏳ Pending |
+| [IPC](https://ipcinfo.org) | Official phase classifications, population per phase, projections | API key | ✅ Live |
 | [HDX HAPI](https://hapi.humdata.org) | Food security phases, market prices, IDPs, conflict events, humanitarian needs | App identifier | ✅ Live |
 | [ReliefWeb](https://reliefweb.int) | Situation reports, humanitarian alerts | Appname | ✅ Live |
 | [World Bank](https://data.worldbank.org) | GDP per capita, poverty rate, malnutrition, population | None | ✅ Live |
