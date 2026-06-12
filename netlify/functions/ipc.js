@@ -25,7 +25,7 @@ exports.handler = async function(event, context) {
     };
   }
 
-  // IPC uses 2-letter ISO codes, not ISO3
+  // IPC API uses 2-letter ISO codes
   const ISO3_TO_ISO2 = {
     'SDN': 'SD', 'SSD': 'SS', 'PSE': 'PS', 'YEM': 'YE', 'HTI': 'HT',
     'COD': 'CD', 'AFG': 'AF', 'ETH': 'ET', 'MLI': 'ML', 'SOM': 'SO',
@@ -41,8 +41,10 @@ exports.handler = async function(event, context) {
 
   console.log(`[IPC] Fetching data for ${iso3} (${iso2})`);
 
+  // /country returns latest analysis with phases[] — primary data source
+  // /analyses returns list of past analyses (metadata only, no phase populations)
   const endpoints = {
-    country: `https://api.ipcinfo.org/country?country=${iso2}&key=${IPC_API_KEY}&format=json`,
+    country:  `https://api.ipcinfo.org/country?country=${iso2}&key=${IPC_API_KEY}&format=json`,
     analyses: `https://api.ipcinfo.org/analyses?country=${iso2}&type=A&key=${IPC_API_KEY}&format=json`,
   };
 
@@ -62,73 +64,52 @@ exports.handler = async function(event, context) {
         if (!r.ok) {
           const errText = await r.text();
           console.warn(`[IPC] ${key} failed: HTTP ${r.status} — ${errText.slice(0, 200)}`);
-          results[key] = [];
+          results[key] = null;
           return;
         }
 
         const data = await r.json();
         results[key] = data;
-        const count = Array.isArray(data) ? data.length : (data ? 1 : 0);
-        console.log(`[IPC] ${key}: ${count} records`);
-        console.log(`[IPC] ${key} raw response:`, JSON.stringify(data).slice(0, 500));
+        console.log(`[IPC] ${key}: ${Array.isArray(data) ? data.length : 1} records`);
 
       } catch (err) {
         console.warn(`[IPC] ${key} error: ${err.message}`);
-        results[key] = [];
+        results[key] = null;
       }
     })
   );
 
-  const current = results.analyses || [];
-  const projection = [];
-  const countrySummary = results.country || {};
+  // /country returns an array; first item has phases[]
+  const countryArr = Array.isArray(results.country) ? results.country : (results.country ? [results.country] : []);
+  const summary = countryArr[0] || null;
 
-  function extractPhaseData(records) {
-    if (!Array.isArray(records)) return null;
-
-    const phases = { p1: 0, p2: 0, p3: 0, p4: 0, p5: 0, total: 0 };
-
-    records.forEach(area => {
-      if (area.phases && Array.isArray(area.phases)) {
-        area.phases.forEach(p => {
-          const pid = p.phase_id || p.phase;
-          const pop = p.population || p.pop || 0;
-          if (pid === 1) phases.p1 += pop;
-          if (pid === 2) phases.p2 += pop;
-          if (pid === 3) phases.p3 += pop;
-          if (pid === 4) phases.p4 += pop;
-          if (pid === 5) phases.p5 += pop;
-        });
-      }
-      if (area.phase3 !== undefined) {
-        phases.p3 += area.phase3 || 0;
-        phases.p4 += area.phase4 || 0;
-        phases.p5 += area.phase5 || 0;
-      }
+  // Parse phase populations from summary.phases[]
+  function extractPhases(summary) {
+    if (!summary || !Array.isArray(summary.phases)) return null;
+    const ph = { p1: 0, p2: 0, p3: 0, p4: 0, p5: 0 };
+    summary.phases.forEach(p => {
+      const pid = Number(p.phase);
+      const pop = p.population || 0;
+      if (pid >= 1 && pid <= 5) ph['p' + pid] = pop;
     });
-
-    phases.total = phases.p1 + phases.p2 + phases.p3 + phases.p4 + phases.p5;
-    phases.phase3plus = phases.p3 + phases.p4 + phases.p5;
-
+    const total = ph.p1 + ph.p2 + ph.p3 + ph.p4 + ph.p5;
+    const phase3plus = ph.p3 + ph.p4 + ph.p5;
     let overallPhase = 1;
-    if (phases.p5 > 1000) overallPhase = 5;
-    else if (phases.p4 > 10000) overallPhase = 4;
-    else if (phases.p3 > 50000) overallPhase = 3;
-    else if (phases.p2 > 100000) overallPhase = 2;
-
-    return { ...phases, overallPhase };
+    if (ph.p5 > 1000) overallPhase = 5;
+    else if (ph.p4 > 10000) overallPhase = 4;
+    else if (ph.p3 > 50000) overallPhase = 3;
+    else if (ph.p2 > 100000) overallPhase = 2;
+    return { ...ph, total, phase3plus, overallPhase };
   }
 
-  const currentPhases = extractPhaseData(current);
-  const projectionPhases = extractPhaseData(projection);
-
-  const refPeriod = current[0]?.reference_period ||
-                    current[0]?.period ||
-                    countrySummary?.current_period || null;
-
+  const currentPhases = extractPhases(summary);
   const hasData = currentPhases && currentPhases.total > 0;
 
-  console.log(`[IPC] ${iso3} — hasData: ${hasData}, phase3plus: ${currentPhases?.phase3plus || 0}`);
+  const refPeriod = summary?.from && summary?.to
+    ? `${summary.from} – ${summary.to}`
+    : null;
+
+  console.log(`[IPC] ${iso3} — hasData: ${hasData}, P3+: ${currentPhases?.phase3plus?.toLocaleString() || 0}, period: ${refPeriod}`);
 
   return {
     statusCode: 200,
@@ -138,10 +119,10 @@ exports.handler = async function(event, context) {
       iso3,
       data: {
         current: currentPhases,
-        projection: projectionPhases,
+        projection: null,
         referencePeriod: refPeriod,
-        countrySummary: Array.isArray(countrySummary) ? countrySummary[0] : countrySummary,
-        rawCurrent: current.slice(0, 5),
+        countrySummary: summary,
+        rawAnalyses: Array.isArray(results.analyses) ? results.analyses.slice(0, 5) : [],
       },
       timestamp: new Date().toISOString()
     })
